@@ -163,7 +163,7 @@ export default function Index() {
               <Text style={styles.headerSub}>Victoria Australia</Text>
             </View>
             <View style={styles.logoBox}>
-              <MaterialCommunityIcons name="check-decagram" size={18} color="#d8492b" />
+              <Text style={styles.logoTick}>✓</Text>
               <Text style={styles.logoText}>vic<Text style={{ fontWeight: "800" }}>roads</Text></Text>
             </View>
           </View>
@@ -232,7 +232,15 @@ export default function Index() {
 
           {activeTab === "permit" && (
             <View style={styles.detailsBlock} testID="permit-content">
-              <Text style={styles.bigName} testID="full-name">{fullName}</Text>
+              <Text
+                style={styles.bigName}
+                testID="full-name"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
+                {fullName}
+              </Text>
 
               <View style={styles.row}>
                 <Field label="Permit number" value={data.permitNumber} testID="permit-number" />
@@ -490,42 +498,44 @@ const styles = StyleSheet.create({
   // header
   headerStrip: {
     backgroundColor: ORANGE,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: "800",
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
-  headerSub: { color: "#fff", fontSize: 14, marginTop: 4, opacity: 0.95 },
+  headerSub: { color: "#fff", fontSize: 12, marginTop: 2, opacity: 0.95 },
   logoBox: {
     backgroundColor: "#fff",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
   },
-  logoText: { color: ORANGE, fontWeight: "600", fontSize: 14 },
+  logoTick: { color: ORANGE, fontWeight: "900", fontSize: 16, lineHeight: 18 },
+  logoText: { color: ORANGE, fontWeight: "500", fontSize: 13 },
 
   // green block (photo + QR)
   greenBlock: {
     backgroundColor: GREEN,
     flexDirection: "row",
-    padding: 12,
-    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
   photoWrap: {
     flex: 1,
-    aspectRatio: 0.9,
+    height: 280,
     borderRadius: 4,
     overflow: "hidden",
     backgroundColor: "#fce5c4",
+    marginRight: 6,
   },
   photoBg: {
     flex: 1,
@@ -534,7 +544,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoInitials: {
-    fontSize: 72,
+    fontSize: 84,
     fontWeight: "800",
     color: "#8a5a2b",
     letterSpacing: 2,
@@ -554,11 +564,12 @@ const styles = StyleSheet.create({
 
   qrPanel: {
     flex: 1,
-    aspectRatio: 0.9,
+    height: 280,
     backgroundColor: PANEL,
     borderRadius: 4,
     padding: 14,
     justifyContent: "space-between",
+    marginLeft: 6,
   },
   qrText: { color: "#3b3f47", fontSize: 13, lineHeight: 18 },
   qrPrompt: { color: DARK, fontWeight: "700", fontSize: 14, marginTop: 8 },
@@ -594,10 +605,10 @@ const styles = StyleSheet.create({
   // details
   detailsBlock: { paddingHorizontal: 20, paddingTop: 18 },
   bigName: {
-    fontSize: 30,
+    fontSize: 38,
     fontWeight: "800",
     color: DARK,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginBottom: 14,
   },
   row: { flexDirection: "row", gap: 16, marginBottom: 14 },
