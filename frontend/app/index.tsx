@@ -15,6 +15,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  useFonts,
+  LaBelleAurore_400Regular,
+} from "@expo-google-fonts/la-belle-aurore";
 
 const STORAGE_KEY = "@vic_probationary_licence_v1";
 
@@ -71,6 +75,7 @@ function formatRefreshed(d: Date) {
 
 export default function Index() {
   const insets = useSafeAreaInsets();
+  const [fontsLoaded] = useFonts({ LaBelleAurore_400Regular });
   const [data, setData] = useState<Licence>(DEFAULT_DATA);
   const [activeTab, setActiveTab] = useState<"permit" | "identity" | "age">("permit");
   const [editVisible, setEditVisible] = useState(false);
@@ -169,20 +174,23 @@ export default function Index() {
               <View style={styles.photoBg}>
                 <Text style={styles.photoInitials}>{initials || "?"}</Text>
               </View>
-              {/* watermark overlay */}
+              {/* watermark overlay - diagonal VICROADS + crowns, like a security pattern */}
               <View style={styles.watermarkOverlay}>
-                {Array.from({ length: 6 }).map((_, r) => (
-                  <View key={r} style={styles.watermarkRow}>
-                    {Array.from({ length: 3 }).map((_, c) => (
-                      <MaterialCommunityIcons
-                        key={c}
-                        name="shield-crown-outline"
-                        size={36}
-                        color="rgba(255,255,255,0.35)"
-                        style={{ transform: [{ rotate: "-12deg" }] }}
-                      />
-                    ))}
-                  </View>
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <Text
+                    key={i}
+                    style={[
+                      styles.watermarkText,
+                      {
+                        top: i * 26 - 30,
+                        left: (i % 2 === 0 ? -20 : -60),
+                        right: -60,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {"VICROADS  ★  VICROADS  ★  VICROADS"}
+                  </Text>
                 ))}
               </View>
             </View>
@@ -255,7 +263,15 @@ export default function Index() {
 
               <View style={styles.col}>
                 <Text style={styles.fieldLabel}>Signature</Text>
-                <Text style={styles.signature} testID="signature">{data.signatureName}</Text>
+                <Text
+                  style={[
+                    styles.signature,
+                    { fontFamily: fontsLoaded ? "LaBelleAurore_400Regular" : undefined },
+                  ]}
+                  testID="signature"
+                >
+                  {data.signatureName}
+                </Text>
               </View>
               <View style={styles.hairline} />
 
@@ -503,11 +519,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 12,
     gap: 12,
-    minHeight: 230,
   },
   photoWrap: {
     flex: 1,
-    aspectRatio: 0.85,
+    aspectRatio: 0.9,
     borderRadius: 4,
     overflow: "hidden",
     backgroundColor: "#fce5c4",
@@ -526,16 +541,20 @@ const styles = StyleSheet.create({
   },
   watermarkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "space-around",
-    paddingVertical: 4,
+    overflow: "hidden",
   },
-  watermarkRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+  watermarkText: {
+    position: "absolute",
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 2,
+    transform: [{ rotate: "-30deg" }],
   },
 
   qrPanel: {
-    flex: 1.1,
+    flex: 1,
+    aspectRatio: 0.9,
     backgroundColor: PANEL,
     borderRadius: 4,
     padding: 14,
@@ -600,11 +619,11 @@ const styles = StyleSheet.create({
   pBadgeText: { color: "#fff", fontWeight: "800", fontSize: 14 },
 
   signature: {
-    fontSize: 36,
+    fontSize: 44,
     color: DARK,
-    fontStyle: "italic",
-    fontWeight: "500",
-    marginTop: 4,
+    fontWeight: "400",
+    marginTop: 6,
+    lineHeight: 56,
   },
 
   statusRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
