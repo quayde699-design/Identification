@@ -15,7 +15,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import QRCode from "react-native-qrcode-svg";
 
 const STORAGE_KEY = "@vic_probationary_licence_v1";
 
@@ -75,7 +74,6 @@ export default function Index() {
   const [data, setData] = useState<Licence>(DEFAULT_DATA);
   const [activeTab, setActiveTab] = useState<"permit" | "identity" | "age">("permit");
   const [editVisible, setEditVisible] = useState(false);
-  const [qrVisible, setQrVisible] = useState(false);
   const [draft, setDraft] = useState<Licence>(DEFAULT_DATA);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
@@ -129,14 +127,6 @@ export default function Index() {
   const initials =
     (data.firstName?.[0] || "") + (data.lastName?.[0] || "");
 
-  const qrPayload = JSON.stringify({
-    name: fullName,
-    permit: data.permitNumber,
-    card: data.cardNumber,
-    expiry: data.expiry,
-    dob: data.dob,
-  });
-
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -151,13 +141,7 @@ export default function Index() {
             <Ionicons name="arrow-back" size={26} color="#0f1722" />
           </TouchableOpacity>
           <Text style={styles.topTitle} testID="screen-title">View details</Text>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            testID="edit-button"
-            onPress={openEdit}
-          >
-            <Ionicons name="create-outline" size={24} color="#0f1722" />
-          </TouchableOpacity>
+          <View style={styles.iconBtn} />
         </View>
         <Text style={styles.refreshed} testID="last-refreshed">
           Last refreshed: {formatRefreshed(refreshedAt)}
@@ -210,7 +194,7 @@ export default function Index() {
               <Text style={styles.qrPrompt}>Do you consent to share your information?</Text>
               <TouchableOpacity
                 style={styles.qrButton}
-                onPress={() => setQrVisible(true)}
+                onPress={openEdit}
                 testID="reveal-qr-button"
               >
                 <Text style={styles.qrButtonText}>Reveal QR code</Text>
@@ -399,24 +383,6 @@ export default function Index() {
       </Modal>
 
       {/* QR modal */}
-      <Modal visible={qrVisible} animationType="fade" transparent onRequestClose={() => setQrVisible(false)}>
-        <View style={styles.qrBackdrop}>
-          <View style={styles.qrCard} testID="qr-modal">
-            <Text style={styles.qrCardTitle}>Scan to share licence</Text>
-            <View style={styles.qrCodeWrap}>
-              <QRCode value={qrPayload || "VIC-LICENCE"} size={220} />
-            </View>
-            <Text style={styles.qrCardSub}>Show this code to the requester. Tap done when finished.</Text>
-            <TouchableOpacity
-              style={styles.qrDoneBtn}
-              onPress={() => setQrVisible(false)}
-              testID="qr-done"
-            >
-              <Text style={styles.qrDoneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
