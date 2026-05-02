@@ -552,7 +552,7 @@ function EmptyTab({
   );
 }
 
-const ORANGE = "#d8492b";
+const ORANGE = "#BB4D3A";
 const GREEN = "#cfe6cb";
 const PANEL = "#eef0f1";
 const DARK = "#0f1722";
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   },
   logoTick: { color: ORANGE, fontWeight: "900", fontSize: 16, lineHeight: 18 },
   logoText: { color: ORANGE, fontWeight: "500", fontSize: 13 },
-  logoImage: { width: 100, height: 36 },
+  logoImage: { width: 140, height: 48 },
 
   // green block (photo + QR)
   greenBlock: {
