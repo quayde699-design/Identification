@@ -926,38 +926,53 @@ function LicenceScreen({
                 <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{draft.cardNumber}</Text>
               </View>
             </ScrollView>
-            {datePickerField && (
-              <View style={{ backgroundColor: "#f5f6f8", borderTopWidth: 1, borderTopColor: "#e6e8ec", paddingBottom: 12 }}>
-                <DateTimePicker
-                  value={parseDate(draft[datePickerField])}
-                  mode="date"
-                  display="spinner"
-                  themeVariant="light"
-                  textColor={DARK}
-                  style={{ height: 220, width: "100%", backgroundColor: "#f5f6f8" }}
-                  onChange={(_e, selected) => {
-                    if (selected) {
-                      setDraft({ ...draft, [datePickerField]: formatDate(selected) });
-                    }
-                  }}
-                />
-                <TouchableOpacity
-                  style={{ alignSelf: "center", marginTop: 4, backgroundColor: DARK, paddingHorizontal: 32, paddingVertical: 10, borderRadius: 999 }}
-                  onPress={() => setDatePickerField(null)}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+      {/* Date picker overlay */}
+      <Modal
+        visible={!!datePickerField}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerField(null)}
+      >
+        <View style={styles.dateBackdrop}>
+          <View style={styles.dateCard}>
+            <Text style={styles.dateTitle}>
+              {datePickerField === "dob"
+                ? "Date of birth"
+                : datePickerField === "expiry"
+                ? "Expiry"
+                : "Issue date"}
+            </Text>
+            {datePickerField && (
+              <DateTimePicker
+                value={parseDate(draft[datePickerField])}
+                mode="date"
+                display="spinner"
+                themeVariant="dark"
+                textColor="#ffffff"
+                style={styles.datePicker}
+                onChange={(_e, selected) => {
+                  if (selected && datePickerField) {
+                    setDraft({ ...draft, [datePickerField]: formatDate(selected) });
+                  }
+                }}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.dateDoneBtn}
+              onPress={() => setDatePickerField(null)}
+              testID="date-done"
+            >
+              <Text style={styles.dateDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
-}
-
-// ---------- Small components ----------
-function Field({ label, value }: { label: string; value: string }) {
+} label, value }: { label: string; value: string }) {
   return (
     <View style={styles.col}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -1346,4 +1361,39 @@ const styles = StyleSheet.create({
     color: DARK,
     backgroundColor: "#fafbfc",
   },
+  dateBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  dateCard: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#0f1722",
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  dateTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  datePicker: {
+    height: 220,
+    width: "100%",
+    backgroundColor: "#0f1722",
+  },
+  dateDoneBtn: {
+    backgroundColor: ORANGE,
+    paddingHorizontal: 36,
+    paddingVertical: 12,
+    borderRadius: 999,
+    marginTop: 10,
+  },
+  dateDoneText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 });
