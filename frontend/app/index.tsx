@@ -197,10 +197,13 @@ export default function Index() {
               <Text style={styles.headerTitle}>PROBATIONARY DRIVER LICENCE</Text>
               <Text style={styles.headerSub}>Victoria Australia</Text>
             </View>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoTick}>✓</Text>
-              <Text style={styles.logoText}>vic<Text style={{ fontWeight: "800" }}>roads</Text></Text>
-            </View>
+            <Image
+              source={{
+                uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/cogszfss_IMG_5144.jpeg",
+              }}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Photo + QR consent */}
@@ -607,6 +610,7 @@ const styles = StyleSheet.create({
   },
   logoTick: { color: ORANGE, fontWeight: "900", fontSize: 16, lineHeight: 18 },
   logoText: { color: ORANGE, fontWeight: "500", fontSize: 13 },
+  logoImage: { width: 100, height: 36 },
 
   // green block (photo + QR)
   greenBlock: {
