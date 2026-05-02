@@ -205,18 +205,20 @@ function LoginScreen({
 }) {
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
+  const [error, setError] = useState("");
   const insets = useSafeAreaInsets();
 
   const tryLogin = () => {
+    setError("");
     if (digits.length !== 6 || letters.length !== 3) {
-      Alert.alert("Invalid", "Enter your 6-digit code and 3-letter code.");
+      setError("Wrong Digit or Letter");
       return;
     }
     const acc = accounts.find(
       (a) => a.digits === digits && a.letters.toUpperCase() === letters.toUpperCase()
     );
     if (!acc) {
-      Alert.alert("Login failed", "No account matches those codes.");
+      setError("Wrong Digit or Letter");
       return;
     }
     if (acc.locked) {
@@ -275,6 +277,9 @@ function LoginScreen({
           <TouchableOpacity style={authStyles.primaryBtn} onPress={tryLogin} testID="login-submit">
             <Text style={authStyles.primaryBtnText}>Sign in</Text>
           </TouchableOpacity>
+          {error ? (
+            <Text style={authStyles.errorText} testID="login-error">{error}</Text>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -363,6 +368,7 @@ function AdminScreen({
   onBack: () => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
@@ -411,16 +417,12 @@ function AdminScreen({
   };
 
   const remove = (id: string) => {
-    Alert.alert("Are you sure you want to delete this account", "", [
-      { text: "No", style: "cancel" },
-      {
-        text: "Confirm",
-        style: "destructive",
-        onPress: async () => {
-          await onSaveAccounts(accounts.filter((a) => a.id !== id));
-        },
-      },
-    ]);
+    setDeleteId(id);
+  };
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    await onSaveAccounts(accounts.filter((a) => a.id !== deleteId));
+    setDeleteId(null);
   };
 
   return (
@@ -480,6 +482,33 @@ function AdminScreen({
           </View>
         ))}
       </ScrollView>
+
+      {/* Delete confirmation modal */}
+      <Modal visible={!!deleteId} transparent animationType="fade" onRequestClose={() => setDeleteId(null)}>
+        <View style={adminStyles.confirmBackdrop}>
+          <View style={adminStyles.confirmCard}>
+            <Text style={adminStyles.confirmTitle}>
+              Are you sure you want to delete this account
+            </Text>
+            <View style={adminStyles.confirmRow}>
+              <TouchableOpacity
+                style={[adminStyles.confirmBtn, { backgroundColor: "#e6e8ec" }]}
+                onPress={() => setDeleteId(null)}
+                testID="delete-no"
+              >
+                <Text style={[adminStyles.confirmBtnText, { color: DARK }]}>No</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[adminStyles.confirmBtn, { backgroundColor: "#c0392b" }]}
+                onPress={confirmDelete}
+                testID="delete-confirm"
+              >
+                <Text style={[adminStyles.confirmBtnText, { color: "#fff" }]}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Create modal */}
       <Modal visible={createOpen} animationType="slide" onRequestClose={() => setCreateOpen(false)}>
@@ -996,21 +1025,28 @@ const authStyles = StyleSheet.create({
   },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   hint: { textAlign: "center", color: MUTED, marginTop: 16, fontSize: 13 },
+  errorText: {
+    textAlign: "center",
+    color: "#d32f2f",
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 14,
+  },
 });
 
 const adminStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     backgroundColor: "#f7f8fa",
-    marginBottom: 10,
+    marginBottom: 14,
   },
-  name: { fontSize: 16, fontWeight: "700", color: DARK },
-  codes: { color: MUTED, fontSize: 13, marginTop: 2 },
-  iconBtn: { padding: 8, marginLeft: 4 },
+  name: { fontSize: 20, fontWeight: "800", color: DARK },
+  codes: { color: MUTED, fontSize: 15, marginTop: 4 },
+  iconBtn: { padding: 12, marginLeft: 6 },
   randomBtn: {
     flexDirection: "row",
     alignSelf: "flex-start",
@@ -1023,6 +1059,38 @@ const adminStyles = StyleSheet.create({
     marginVertical: 12,
   },
   randomBtnText: { color: "#fff", fontWeight: "700" },
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 24,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: DARK,
+    textAlign: "center",
+    marginBottom: 22,
+  },
+  confirmRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: "center",
+  },
+  confirmBtnText: { fontWeight: "700", fontSize: 16 },
 });
 
 const styles = StyleSheet.create({
