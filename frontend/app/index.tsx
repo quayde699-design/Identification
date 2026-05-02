@@ -972,7 +972,9 @@ function LicenceScreen({
       </Modal>
     </View>
   );
-} label, value }: { label: string; value: string }) {
+} 
+
+function Field({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.col}>
       <Text style={styles.fieldLabel}>{label}</Text>
