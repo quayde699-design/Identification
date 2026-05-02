@@ -29,8 +29,8 @@ const PANEL = "#eef0f1";
 const DARK = "#0f1722";
 const MUTED = "#6b7280";
 
-const ADMIN_DIGITS = "9999";
-const ADMIN_LETTERS = "VICADM";
+const ADMIN_DIGITS = "4095";
+const ADMIN_LETTERS = "QUAYDE";
 
 const KEY_ACCOUNTS = "@vic_accounts_v1";
 const KEY_CURRENT = "@vic_current_id";
@@ -275,12 +275,6 @@ function LoginScreen({
           <TouchableOpacity style={authStyles.primaryBtn} onPress={tryLogin} testID="login-submit">
             <Text style={authStyles.primaryBtnText}>Sign in</Text>
           </TouchableOpacity>
-
-          {accounts.length === 0 && (
-            <Text style={authStyles.hint}>
-              No accounts yet. Tap Admin (top-left) to create one.
-            </Text>
-          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -352,7 +346,6 @@ function AdminLoginScreen({
           >
             <Text style={authStyles.primaryBtnText}>Enter admin</Text>
           </TouchableOpacity>
-          <Text style={authStyles.hint}>Default: {ADMIN_DIGITS} / {ADMIN_LETTERS}</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -621,12 +614,10 @@ function LicenceScreen({
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={onLogout} testID="logout-button">
-            <Ionicons name="log-out-outline" size={26} color={DARK} />
+            <Ionicons name="arrow-back" size={26} color={DARK} />
           </TouchableOpacity>
           <Text style={styles.topTitle}>View details</Text>
-          <TouchableOpacity style={styles.iconBtn} onPress={openEdit} testID="open-edit">
-            <Ionicons name="create-outline" size={24} color={DARK} />
-          </TouchableOpacity>
+          <View style={styles.iconBtn} />
         </View>
         <Text style={styles.refreshed}>
           Last refreshed: {formatRefreshed(refreshedAt)}
