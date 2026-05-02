@@ -220,7 +220,7 @@ function LoginScreen({
       return;
     }
     if (acc.locked) {
-      Alert.alert("Account locked", "Contact admin to unlock this account.");
+      Alert.alert("Account locked");
       return;
     }
     onLogin(acc);
@@ -411,10 +411,10 @@ function AdminScreen({
   };
 
   const remove = (id: string) => {
-    Alert.alert("Delete account?", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Are you sure you want to delete this account", "", [
+      { text: "No", style: "cancel" },
       {
-        text: "Delete",
+        text: "Confirm",
         style: "destructive",
         onPress: async () => {
           await onSaveAccounts(accounts.filter((a) => a.id !== id));
