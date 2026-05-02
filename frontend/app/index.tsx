@@ -14,6 +14,9 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useFonts,
@@ -37,6 +40,7 @@ type Licence = {
   proficiency: string;
   issueDate: string;
   cardNumber: string;
+  photoUri: string;
 };
 
 const DEFAULT_DATA: Licence = {
@@ -54,6 +58,8 @@ const DEFAULT_DATA: Licence = {
   proficiency: "Probationary",
   issueDate: "27 Jul 2023",
   cardNumber: "P3497519",
+  photoUri:
+    "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/5aleh00v_IMG_5123.jpeg",
 };
 
 function formatRefreshed(d: Date) {
@@ -80,6 +86,7 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<"permit" | "identity" | "age">("permit");
   const [editVisible, setEditVisible] = useState(false);
   const [draft, setDraft] = useState<Licence>(DEFAULT_DATA);
+  const [datePickerField, setDatePickerField] = useState<null | "dob" | "expiry" | "issueDate">(null);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
   // Load persisted
@@ -109,6 +116,35 @@ export default function Index() {
     }
     setEditVisible(false);
   }, [draft]);
+
+  const pickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo access to change your picture.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const a = result.assets[0];
+      const uri = a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
+      setDraft({ ...draft, photoUri: uri });
+    }
+  };
+
+  const parseDate = (s: string): Date => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+  const formatDate = (d: Date) => {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
 
   const resetData = () => {
     Alert.alert("Reset licence", "Restore default placeholder details?", [
@@ -171,28 +207,17 @@ export default function Index() {
           {/* Photo + QR consent */}
           <View style={styles.greenBlock}>
             <View style={styles.photoWrap} testID="portrait-photo">
-              <View style={styles.photoBg}>
-                <Text style={styles.photoInitials}>{initials || "?"}</Text>
-              </View>
-              {/* watermark overlay - diagonal VICROADS + crowns, like a security pattern */}
-              <View style={styles.watermarkOverlay}>
-                {Array.from({ length: 14 }).map((_, i) => (
-                  <Text
-                    key={i}
-                    style={[
-                      styles.watermarkText,
-                      {
-                        top: i * 26 - 30,
-                        left: (i % 2 === 0 ? -20 : -60),
-                        right: -60,
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {"VICROADS  ★  VICROADS  ★  VICROADS"}
-                  </Text>
-                ))}
-              </View>
+              {data.photoUri ? (
+                <Image
+                  source={{ uri: data.photoUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.photoBg}>
+                  <Text style={styles.photoInitials}>{initials || "?"}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.qrPanel}>
@@ -373,6 +398,25 @@ export default function Index() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+              <View style={{ alignItems: "center", marginBottom: 20 }}>
+                {draft.photoUri ? (
+                  <Image
+                    source={{ uri: draft.photoUri }}
+                    style={{ width: 140, height: 180, borderRadius: 10, backgroundColor: "#eee" }}
+                  />
+                ) : (
+                  <View style={{ width: 140, height: 180, borderRadius: 10, backgroundColor: "#eee", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="person" size={60} color="#aaa" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  onPress={pickPhoto}
+                  style={{ marginTop: 10, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999 }}
+                  testID="pick-photo"
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>Change profile picture</Text>
+                </TouchableOpacity>
+              </View>
               <EditField label="First name" value={draft.firstName}
                 onChange={(v) => setDraft({ ...draft, firstName: v.toUpperCase() })} testID="input-firstName" />
               <EditField label="Middle initial" value={draft.middle}
@@ -381,12 +425,10 @@ export default function Index() {
                 onChange={(v) => setDraft({ ...draft, lastName: v.toUpperCase() })} testID="input-lastName" />
               <EditField label="Permit number" value={draft.permitNumber}
                 onChange={(v) => setDraft({ ...draft, permitNumber: v })} testID="input-permitNumber" />
-              <EditField label="Expiry" value={draft.expiry}
-                onChange={(v) => setDraft({ ...draft, expiry: v })} testID="input-expiry" />
+              <DatePickerField label="Expiry" value={draft.expiry} onPress={() => setDatePickerField("expiry")} testID="date-expiry" />
               <EditField label="Licence type" value={draft.licenceType}
                 onChange={(v) => setDraft({ ...draft, licenceType: v })} testID="input-licenceType" />
-              <EditField label="Date of birth" value={draft.dob}
-                onChange={(v) => setDraft({ ...draft, dob: v })} testID="input-dob" />
+              <DatePickerField label="Date of birth" value={draft.dob} onPress={() => setDatePickerField("dob")} testID="date-dob" />
               <EditField label="Address line 1" value={draft.addressLine1}
                 onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} testID="input-addr1" />
               <EditField label="Address line 2" value={draft.addressLine2}
@@ -397,11 +439,31 @@ export default function Index() {
                 onChange={(v) => setDraft({ ...draft, permitStatus: v })} testID="input-status" />
               <EditField label="Proficiency" value={draft.proficiency}
                 onChange={(v) => setDraft({ ...draft, proficiency: v })} testID="input-proficiency" />
-              <EditField label="Issue date" value={draft.issueDate}
-                onChange={(v) => setDraft({ ...draft, issueDate: v })} testID="input-issueDate" />
+              <DatePickerField label="Issue date" value={draft.issueDate} onPress={() => setDatePickerField("issueDate")} testID="date-issue" />
               <EditField label="Card number" value={draft.cardNumber}
                 onChange={(v) => setDraft({ ...draft, cardNumber: v })} testID="input-cardNumber" />
             </ScrollView>
+            {datePickerField && (
+              <DateTimePicker
+                value={parseDate(draft[datePickerField])}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, selected) => {
+                  if (Platform.OS !== "ios") setDatePickerField(null);
+                  if (selected) {
+                    setDraft({ ...draft, [datePickerField]: formatDate(selected) });
+                  }
+                }}
+              />
+            )}
+            {datePickerField && Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={{ alignSelf: "center", marginBottom: 20, backgroundColor: DARK, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 999 }}
+                onPress={() => setDatePickerField(null)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+              </TouchableOpacity>
+            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
@@ -441,6 +503,27 @@ function EditField({
         placeholderTextColor="#9aa1ad"
         testID={testID}
       />
+    </View>
+  );
+}
+
+function DatePickerField({
+  label,
+  value,
+  onPress,
+  testID,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  testID?: string;
+}) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.editLabel}>{label}</Text>
+      <TouchableOpacity onPress={onPress} style={styles.editInput} testID={testID}>
+        <Text style={{ fontSize: 16, color: "#0f1722" }}>{value || "Select date"}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -530,12 +613,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   photoWrap: {
-    flex: 1,
-    height: 280,
+    width: "48%",
+    height: 260,
     borderRadius: 4,
     overflow: "hidden",
     backgroundColor: "#fce5c4",
-    marginRight: 6,
+    marginRight: "2%",
   },
   photoBg: {
     flex: 1,
@@ -544,7 +627,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoInitials: {
-    fontSize: 84,
+    fontSize: 72,
     fontWeight: "800",
     color: "#8a5a2b",
     letterSpacing: 2,
@@ -563,16 +646,17 @@ const styles = StyleSheet.create({
   },
 
   qrPanel: {
-    flex: 1,
-    height: 280,
+    width: "48%",
+    height: 260,
     backgroundColor: PANEL,
     borderRadius: 4,
     padding: 14,
     justifyContent: "space-between",
-    marginLeft: 6,
+    alignItems: "center",
+    marginLeft: "2%",
   },
-  qrText: { color: "#3b3f47", fontSize: 13, lineHeight: 18 },
-  qrPrompt: { color: DARK, fontWeight: "700", fontSize: 14, marginTop: 8 },
+  qrText: { color: "#3b3f47", fontSize: 13, lineHeight: 18, textAlign: "center" },
+  qrPrompt: { color: DARK, fontWeight: "700", fontSize: 14, marginTop: 8, textAlign: "center" },
   qrButton: {
     backgroundColor: DARK,
     borderRadius: 999,
@@ -605,7 +689,7 @@ const styles = StyleSheet.create({
   // details
   detailsBlock: { paddingHorizontal: 20, paddingTop: 18 },
   bigName: {
-    fontSize: 38,
+    fontSize: 30,
     fontWeight: "800",
     color: DARK,
     letterSpacing: 0.3,
