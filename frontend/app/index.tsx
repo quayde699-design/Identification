@@ -193,8 +193,15 @@ export default function Index() {
         >
           {/* Header strip */}
           <View style={styles.headerStrip} testID="header-strip">
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle}>PROBATIONARY DRIVER LICENCE</Text>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text
+                style={styles.headerTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                PROBATIONARY DRIVER LICENCE
+              </Text>
               <Text style={styles.headerSub}>Victoria Australia</Text>
             </View>
             <Image
@@ -552,7 +559,7 @@ function EmptyTab({
   );
 }
 
-const ORANGE = "#BB4D3A";
+const ORANGE = "#BB4E3A";
 const GREEN = "#cfe6cb";
 const PANEL = "#eef0f1";
 const DARK = "#0f1722";
@@ -610,7 +617,7 @@ const styles = StyleSheet.create({
   },
   logoTick: { color: ORANGE, fontWeight: "900", fontSize: 16, lineHeight: 18 },
   logoText: { color: ORANGE, fontWeight: "500", fontSize: 13 },
-  logoImage: { width: 140, height: 48 },
+  logoImage: { width: 110, height: 38 },
 
   // green block (photo + QR)
   greenBlock: {
