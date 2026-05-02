@@ -118,12 +118,7 @@ export default function Index() {
     (async () => {
       try {
         const a = await AsyncStorage.getItem(KEY_ACCOUNTS);
-        const c = await AsyncStorage.getItem(KEY_CURRENT);
         if (a) setAccounts(JSON.parse(a));
-        if (c) {
-          setCurrentId(c);
-          setScreen("licence");
-        }
       } catch {}
     })();
   }, []);
@@ -155,7 +150,6 @@ export default function Index() {
         accounts={accounts}
         onLogin={async (acc) => {
           setCurrentId(acc.id);
-          await AsyncStorage.setItem(KEY_CURRENT, acc.id);
           setScreen("licence");
         }}
         onAdmin={() => setScreen("admin-login")}
@@ -1021,26 +1015,30 @@ const PICKER_H = ITEM_H * VISIBLE;
 
 function WheelColumn({
   data,
-  selectedIndex,
+  initialIndex,
   onChange,
   width,
 }: {
   data: string[];
-  selectedIndex: number;
+  initialIndex: number;
   onChange: (i: number) => void;
   width: number;
 }) {
   const ref = React.useRef<any>(null);
+  const didInitial = React.useRef(false);
 
-  // Scroll to selected index when the prop changes
   React.useEffect(() => {
+    if (didInitial.current) return;
     const t = setTimeout(() => {
-      if (ref.current && selectedIndex >= 0) {
-        ref.current.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
+      if (ref.current && initialIndex >= 0) {
+        ref.current.scrollTo({ y: initialIndex * ITEM_H, animated: false });
       }
+      didInitial.current = true;
     }, 30);
     return () => clearTimeout(t);
-  }, [selectedIndex, data.length]);
+  }, [initialIndex]);
+
+  const [centerIdx, setCenterIdx] = React.useState(initialIndex);
 
   return (
     <View style={{ width, height: PICKER_H }}>
@@ -1050,6 +1048,12 @@ function WheelColumn({
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         contentContainerStyle={{ paddingVertical: ITEM_H * Math.floor(VISIBLE / 2) }}
+        onScroll={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          const clamped = Math.max(0, Math.min(data.length - 1, idx));
+          if (clamped !== centerIdx) setCenterIdx(clamped);
+        }}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
           const clamped = Math.max(0, Math.min(data.length - 1, idx));
@@ -1067,9 +1071,9 @@ function WheelColumn({
           >
             <Text
               style={{
-                color: i === selectedIndex ? "#fff" : "rgba(255,255,255,0.45)",
-                fontSize: i === selectedIndex ? 22 : 18,
-                fontWeight: i === selectedIndex ? "800" : "500",
+                color: i === centerIdx ? "#fff" : "rgba(255,255,255,0.45)",
+                fontSize: i === centerIdx ? 22 : 18,
+                fontWeight: i === centerIdx ? "800" : "500",
               }}
             >
               {item}
@@ -1130,19 +1134,19 @@ function WheelDatePicker({
       />
       <WheelColumn
         data={days}
-        selectedIndex={Math.min(day - 1, days.length - 1)}
+        initialIndex={Math.min(day - 1, days.length - 1)}
         onChange={(i) => setDay(i + 1)}
         width={70}
       />
       <WheelColumn
         data={months}
-        selectedIndex={month}
+        initialIndex={month}
         onChange={(i) => setMonth(i)}
         width={90}
       />
       <WheelColumn
         data={years}
-        selectedIndex={years.indexOf(String(year))}
+        initialIndex={years.indexOf(String(year))}
         onChange={(i) => setYear(parseInt(years[i], 10))}
         width={90}
       />
