@@ -217,41 +217,29 @@ export default function Index() {
                   <Text style={styles.photoInitials}>{initials || "?"}</Text>
                 </View>
               )}
-              {/* Watermark overlay (sits on top of any photo) */}
+              {/* Watermark overlay (Australian Coat of Arms - 3 placements) */}
               <View pointerEvents="none" style={styles.watermarkOverlay}>
-                {/* Sparse coat-of-arms style icons */}
                 {[
-                  { top: 14, left: 14, size: 44, rot: -12 },
-                  { top: 60, left: 90, size: 38, rot: 8 },
-                  { top: 120, left: 20, size: 50, rot: -6 },
-                  { top: 170, left: 100, size: 42, rot: 14 },
-                  { top: 220, left: 30, size: 36, rot: -10 },
-                ].map((p, i) => (
-                  <MaterialCommunityIcons
+                  { top: 8, left: 8 },          // top-left
+                  { top: 110, right: 8 },       // middle-right
+                  { bottom: 8, left: 8 },       // bottom-left
+                ].map((pos, i) => (
+                  <Image
                     key={i}
-                    name="shield-crown-outline"
-                    size={p.size}
-                    color="rgba(255,255,255,0.55)"
-                    style={{
-                      position: "absolute",
-                      top: p.top,
-                      left: p.left,
-                      transform: [{ rotate: `${p.rot}deg` }],
+                    source={{
+                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/wyxkqsqx_IMG_5185.png",
                     }}
-                  />
-                ))}
-                {/* Diagonal faint VICROADS lines */}
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Text
-                    key={`t${i}`}
                     style={[
-                      styles.watermarkText,
-                      { top: i * 44 + 8, left: -30, right: -30 },
+                      {
+                        position: "absolute",
+                        width: 56,
+                        height: 56,
+                        opacity: 0.5,
+                      },
+                      pos,
                     ]}
-                    numberOfLines={1}
-                  >
-                    {"VICROADS  ★  VICROADS"}
-                  </Text>
+                    resizeMode="contain"
+                  />
                 ))}
               </View>
             </View>
@@ -481,25 +469,24 @@ export default function Index() {
                 onChange={(v) => setDraft({ ...draft, cardNumber: v })} testID="input-cardNumber" />
             </ScrollView>
             {datePickerField && (
-              <DateTimePicker
-                value={parseDate(draft[datePickerField])}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selected) => {
-                  if (Platform.OS !== "ios") setDatePickerField(null);
-                  if (selected) {
-                    setDraft({ ...draft, [datePickerField]: formatDate(selected) });
-                  }
-                }}
-              />
-            )}
-            {datePickerField && Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={{ alignSelf: "center", marginBottom: 20, backgroundColor: DARK, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 999 }}
-                onPress={() => setDatePickerField(null)}
-              >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
-              </TouchableOpacity>
+              <View style={{ backgroundColor: "#f5f6f8", borderTopWidth: 1, borderTopColor: "#e6e8ec", paddingBottom: 8 }}>
+                <DateTimePicker
+                  value={parseDate(draft[datePickerField])}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, selected) => {
+                    if (selected) {
+                      setDraft({ ...draft, [datePickerField]: formatDate(selected) });
+                    }
+                  }}
+                />
+                <TouchableOpacity
+                  style={{ alignSelf: "center", marginTop: 4, backgroundColor: DARK, paddingHorizontal: 28, paddingVertical: 10, borderRadius: 999 }}
+                  onPress={() => setDatePickerField(null)}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -727,10 +714,10 @@ const styles = StyleSheet.create({
   // details
   detailsBlock: { paddingHorizontal: 20, paddingTop: 18 },
   bigName: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: "800",
     color: DARK,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     marginBottom: 14,
   },
   row: { flexDirection: "row", gap: 16, marginBottom: 14 },
