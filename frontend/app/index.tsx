@@ -58,8 +58,7 @@ const DEFAULT_DATA: Licence = {
   proficiency: "Probationary",
   issueDate: "27 Jul 2023",
   cardNumber: "P3497519",
-  photoUri:
-    "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/5aleh00v_IMG_5123.jpeg",
+  photoUri: "",
 };
 
 function formatRefreshed(d: Date) {
@@ -218,6 +217,43 @@ export default function Index() {
                   <Text style={styles.photoInitials}>{initials || "?"}</Text>
                 </View>
               )}
+              {/* Watermark overlay (sits on top of any photo) */}
+              <View pointerEvents="none" style={styles.watermarkOverlay}>
+                {/* Sparse coat-of-arms style icons */}
+                {[
+                  { top: 14, left: 14, size: 44, rot: -12 },
+                  { top: 60, left: 90, size: 38, rot: 8 },
+                  { top: 120, left: 20, size: 50, rot: -6 },
+                  { top: 170, left: 100, size: 42, rot: 14 },
+                  { top: 220, left: 30, size: 36, rot: -10 },
+                ].map((p, i) => (
+                  <MaterialCommunityIcons
+                    key={i}
+                    name="shield-crown-outline"
+                    size={p.size}
+                    color="rgba(255,255,255,0.55)"
+                    style={{
+                      position: "absolute",
+                      top: p.top,
+                      left: p.left,
+                      transform: [{ rotate: `${p.rot}deg` }],
+                    }}
+                  />
+                ))}
+                {/* Diagonal faint VICROADS lines */}
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Text
+                    key={`t${i}`}
+                    style={[
+                      styles.watermarkText,
+                      { top: i * 44 + 8, left: -30, right: -30 },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {"VICROADS  ★  VICROADS"}
+                  </Text>
+                ))}
+              </View>
             </View>
 
             <View style={styles.qrPanel}>
@@ -262,7 +298,8 @@ export default function Index() {
                 testID="full-name"
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.6}
+                minimumFontScale={0.4}
+                ellipsizeMode="clip"
               >
                 {fullName}
               </Text>
@@ -638,11 +675,11 @@ const styles = StyleSheet.create({
   },
   watermarkText: {
     position: "absolute",
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 2,
-    transform: [{ rotate: "-30deg" }],
+    color: "rgba(255,255,255,0.32)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    transform: [{ rotate: "-22deg" }],
   },
 
   qrPanel: {
@@ -663,6 +700,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
     marginTop: 12,
+    alignSelf: "stretch",
   },
   qrButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
@@ -689,7 +727,7 @@ const styles = StyleSheet.create({
   // details
   detailsBlock: { paddingHorizontal: 20, paddingTop: 18 },
   bigName: {
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: "800",
     color: DARK,
     letterSpacing: 0.3,
