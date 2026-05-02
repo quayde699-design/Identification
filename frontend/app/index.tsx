@@ -220,21 +220,21 @@ export default function Index() {
               {/* Watermark overlay (Australian Coat of Arms - 3 placements) */}
               <View pointerEvents="none" style={styles.watermarkOverlay}>
                 {[
-                  { top: 8, left: 8 },          // top-left
-                  { top: 110, right: 8 },       // middle-right
-                  { bottom: 8, left: 8 },       // bottom-left
+                  { top: -8, left: -8 },        // top-left
+                  { top: 75, right: -8 },       // middle-right
+                  { bottom: -8, left: -8 },     // bottom-left
                 ].map((pos, i) => (
                   <Image
                     key={i}
                     source={{
-                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/wyxkqsqx_IMG_5185.png",
+                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/0jf1o4bk_a96ebfcc-b707-47d6-bc40-05891cd936dc_removalai_preview.png",
                     }}
                     style={[
                       {
                         position: "absolute",
-                        width: 56,
-                        height: 56,
-                        opacity: 0.5,
+                        width: 110,
+                        height: 110,
+                        opacity: 0.45,
                       },
                       pos,
                     ]}
@@ -448,12 +448,12 @@ export default function Index() {
                 onChange={(v) => setDraft({ ...draft, middle: v.toUpperCase() })} testID="input-middle" />
               <EditField label="Last name" value={draft.lastName}
                 onChange={(v) => setDraft({ ...draft, lastName: v.toUpperCase() })} testID="input-lastName" />
-              <EditField label="Permit number" value={draft.permitNumber}
-                onChange={(v) => setDraft({ ...draft, permitNumber: v })} testID="input-permitNumber" />
-              <DatePickerField label="Expiry" value={draft.expiry} onPress={() => setDatePickerField("expiry")} testID="date-expiry" />
+              <EditField label="Expiry (e.g. 04 Jul 2026)" value={draft.expiry}
+                onChange={(v) => setDraft({ ...draft, expiry: v })} testID="input-expiry" />
               <EditField label="Licence type" value={draft.licenceType}
                 onChange={(v) => setDraft({ ...draft, licenceType: v })} testID="input-licenceType" />
-              <DatePickerField label="Date of birth" value={draft.dob} onPress={() => setDatePickerField("dob")} testID="date-dob" />
+              <EditField label="Date of birth (e.g. 04 Jul 2007)" value={draft.dob}
+                onChange={(v) => setDraft({ ...draft, dob: v })} testID="input-dob" />
               <EditField label="Address line 1" value={draft.addressLine1}
                 onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} testID="input-addr1" />
               <EditField label="Address line 2" value={draft.addressLine2}
@@ -464,30 +464,9 @@ export default function Index() {
                 onChange={(v) => setDraft({ ...draft, permitStatus: v })} testID="input-status" />
               <EditField label="Proficiency" value={draft.proficiency}
                 onChange={(v) => setDraft({ ...draft, proficiency: v })} testID="input-proficiency" />
-              <DatePickerField label="Issue date" value={draft.issueDate} onPress={() => setDatePickerField("issueDate")} testID="date-issue" />
-              <EditField label="Card number" value={draft.cardNumber}
-                onChange={(v) => setDraft({ ...draft, cardNumber: v })} testID="input-cardNumber" />
+              <EditField label="Issue date (e.g. 27 Jul 2023)" value={draft.issueDate}
+                onChange={(v) => setDraft({ ...draft, issueDate: v })} testID="input-issueDate" />
             </ScrollView>
-            {datePickerField && (
-              <View style={{ backgroundColor: "#f5f6f8", borderTopWidth: 1, borderTopColor: "#e6e8ec", paddingBottom: 8 }}>
-                <DateTimePicker
-                  value={parseDate(draft[datePickerField])}
-                  mode="date"
-                  display="spinner"
-                  onChange={(event, selected) => {
-                    if (selected) {
-                      setDraft({ ...draft, [datePickerField]: formatDate(selected) });
-                    }
-                  }}
-                />
-                <TouchableOpacity
-                  style={{ alignSelf: "center", marginTop: 4, backgroundColor: DARK, paddingHorizontal: 28, paddingVertical: 10, borderRadius: 999 }}
-                  onPress={() => setDatePickerField(null)}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
