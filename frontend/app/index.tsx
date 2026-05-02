@@ -222,7 +222,7 @@ function LoginScreen({
       return;
     }
     if (acc.locked) {
-      Alert.alert("Account locked");
+      setError("Account Locked");
       return;
     }
     onLogin(acc);
@@ -296,6 +296,7 @@ function AdminLoginScreen({
 }) {
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
+  const [error, setError] = useState("");
   return (
     <SafeAreaView style={authStyles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -341,16 +342,20 @@ function AdminLoginScreen({
           <TouchableOpacity
             style={authStyles.primaryBtn}
             onPress={() => {
+              setError("");
               if (digits === ADMIN_DIGITS && letters.toUpperCase() === ADMIN_LETTERS) {
                 onSuccess();
               } else {
-                Alert.alert("Access denied", "Wrong admin codes.");
+                setError("Wrong Digit or Letter");
               }
             }}
             testID="admin-submit"
           >
             <Text style={authStyles.primaryBtnText}>Enter admin</Text>
           </TouchableOpacity>
+          {error ? (
+            <Text style={authStyles.errorText} testID="admin-error">{error}</Text>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
