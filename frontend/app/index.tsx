@@ -932,6 +932,9 @@ function LicenceScreen({
                   value={parseDate(draft[datePickerField])}
                   mode="date"
                   display="spinner"
+                  themeVariant="light"
+                  textColor={DARK}
+                  style={{ height: 220, width: "100%", backgroundColor: "#f5f6f8" }}
                   onChange={(_e, selected) => {
                     if (selected) {
                       setDraft({ ...draft, [datePickerField]: formatDate(selected) });
