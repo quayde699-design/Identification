@@ -946,18 +946,11 @@ function LicenceScreen({
                 : "Issue date"}
             </Text>
             {datePickerField && (
-              <DateTimePicker
+              <WheelDatePicker
                 value={parseDate(draft[datePickerField])}
-                mode="date"
-                display="spinner"
-                themeVariant="dark"
-                textColor="#ffffff"
-                style={styles.datePicker}
-                onChange={(_e, selected) => {
-                  if (selected && datePickerField) {
-                    setDraft({ ...draft, [datePickerField]: formatDate(selected) });
-                  }
-                }}
+                onChange={(d) =>
+                  setDraft({ ...draft, [datePickerField]: formatDate(d) })
+                }
               />
             )}
             <TouchableOpacity
@@ -1018,6 +1011,141 @@ function DateField({
       <TouchableOpacity onPress={onPress} style={styles.editInput} testID={`date-${label}`}>
         <Text style={{ fontSize: 16, color: DARK }}>{value || "Select date"}</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+const ITEM_H = 44;
+const VISIBLE = 5; // odd number so a row is centred
+const PICKER_H = ITEM_H * VISIBLE;
+
+function WheelColumn({
+  data,
+  selectedIndex,
+  onChange,
+  width,
+}: {
+  data: string[];
+  selectedIndex: number;
+  onChange: (i: number) => void;
+  width: number;
+}) {
+  const ref = React.useRef<any>(null);
+
+  // Scroll to selected index when the prop changes
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      if (ref.current && selectedIndex >= 0) {
+        ref.current.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
+      }
+    }, 30);
+    return () => clearTimeout(t);
+  }, [selectedIndex, data.length]);
+
+  return (
+    <View style={{ width, height: PICKER_H }}>
+      <ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingVertical: ITEM_H * Math.floor(VISIBLE / 2) }}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          const clamped = Math.max(0, Math.min(data.length - 1, idx));
+          onChange(clamped);
+        }}
+      >
+        {data.map((item, i) => (
+          <View
+            key={i}
+            style={{
+              height: ITEM_H,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: i === selectedIndex ? "#fff" : "rgba(255,255,255,0.45)",
+                fontSize: i === selectedIndex ? 22 : 18,
+                fontWeight: i === selectedIndex ? "800" : "500",
+              }}
+            >
+              {item}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function WheelDatePicker({
+  value,
+  onChange,
+}: {
+  value: Date;
+  onChange: (d: Date) => void;
+}) {
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const years: string[] = [];
+  for (let y = 1950; y <= 2050; y++) years.push(String(y));
+
+  const [day, setDay] = useState(value.getDate());
+  const [month, setMonth] = useState(value.getMonth());
+  const [year, setYear] = useState(value.getFullYear());
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: string[] = [];
+  for (let d = 1; d <= daysInMonth; d++) days.push(String(d).padStart(2, "0"));
+
+  // Push changes up
+  React.useEffect(() => {
+    const safeDay = Math.min(day, daysInMonth);
+    onChange(new Date(year, month, safeDay));
+  }, [day, month, year]);
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 6 }}>
+      {/* selection band */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 8,
+          right: 8,
+          top: PICKER_H / 2 - ITEM_H / 2,
+          height: ITEM_H,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: "rgba(255,255,255,0.18)",
+          backgroundColor: "rgba(255,255,255,0.06)",
+          borderRadius: 8,
+          zIndex: 1,
+        }}
+      />
+      <WheelColumn
+        data={days}
+        selectedIndex={Math.min(day - 1, days.length - 1)}
+        onChange={(i) => setDay(i + 1)}
+        width={70}
+      />
+      <WheelColumn
+        data={months}
+        selectedIndex={month}
+        onChange={(i) => setMonth(i)}
+        width={90}
+      />
+      <WheelColumn
+        data={years}
+        selectedIndex={years.indexOf(String(year))}
+        onChange={(i) => setYear(parseInt(years[i], 10))}
+        width={90}
+      />
     </View>
   );
 }
