@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useFonts,
@@ -595,6 +596,16 @@ function LicenceScreen({
   const [editVisible, setEditVisible] = useState(false);
   const [draft, setDraft] = useState<Licence>(account.licence);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
+  const [datePickerField, setDatePickerField] = useState<null | "dob" | "expiry" | "issueDate">(null);
+
+  const parseDate = (s: string): Date => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date(2008, 0, 1) : d;
+  };
+  const formatDate = (d: Date) => {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
 
   // Reset draft when account changes
   useEffect(() => {
@@ -878,12 +889,18 @@ function LicenceScreen({
                 <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{account.name}</Text>
               </View>
 
-              <EditField label="Expiry (e.g. 15 Jan 2026)" value={draft.expiry}
-                onChange={(v) => setDraft({ ...draft, expiry: v })} />
+              <DateField
+                label="Expiry"
+                value={draft.expiry}
+                onPress={() => setDatePickerField("expiry")}
+              />
               <EditField label="Licence type" value={draft.licenceType}
                 onChange={(v) => setDraft({ ...draft, licenceType: v })} />
-              <EditField label="Date of birth (e.g. 01 Jan 2008)" value={draft.dob}
-                onChange={(v) => setDraft({ ...draft, dob: v })} />
+              <DateField
+                label="Date of birth"
+                value={draft.dob}
+                onPress={() => setDatePickerField("dob")}
+              />
               <EditField label="Address line 1" value={draft.addressLine1}
                 onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} />
               <EditField label="Address line 2" value={draft.addressLine2}
@@ -894,8 +911,11 @@ function LicenceScreen({
                 onChange={(v) => setDraft({ ...draft, permitStatus: v })} />
               <EditField label="Proficiency" value={draft.proficiency}
                 onChange={(v) => setDraft({ ...draft, proficiency: v })} />
-              <EditField label="Issue date (e.g. 15 Jan 2027)" value={draft.issueDate}
-                onChange={(v) => setDraft({ ...draft, issueDate: v })} />
+              <DateField
+                label="Issue date"
+                value={draft.issueDate}
+                onPress={() => setDatePickerField("issueDate")}
+              />
 
               <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 10 }}>
                 <Text style={styles.editLabel}>Permit number (locked)</Text>
@@ -906,6 +926,26 @@ function LicenceScreen({
                 <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{draft.cardNumber}</Text>
               </View>
             </ScrollView>
+            {datePickerField && (
+              <View style={{ backgroundColor: "#f5f6f8", borderTopWidth: 1, borderTopColor: "#e6e8ec", paddingBottom: 12 }}>
+                <DateTimePicker
+                  value={parseDate(draft[datePickerField])}
+                  mode="date"
+                  display="spinner"
+                  onChange={(_e, selected) => {
+                    if (selected) {
+                      setDraft({ ...draft, [datePickerField]: formatDate(selected) });
+                    }
+                  }}
+                />
+                <TouchableOpacity
+                  style={{ alignSelf: "center", marginTop: 4, backgroundColor: DARK, paddingHorizontal: 32, paddingVertical: 10, borderRadius: 999 }}
+                  onPress={() => setDatePickerField(null)}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
@@ -943,6 +983,25 @@ function EditField({
     </View>
   );
 }
+function DateField({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.editLabel}>{label}</Text>
+      <TouchableOpacity onPress={onPress} style={styles.editInput} testID={`date-${label}`}>
+        <Text style={{ fontSize: 16, color: DARK }}>{value || "Select date"}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function EmptyTab({
   icon,
   title,
