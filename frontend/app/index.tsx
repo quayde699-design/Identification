@@ -766,7 +766,14 @@ function LicenceScreen({
                       uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/i7yv50gx_IMG_5224.jpeg",
                     }}
                     style={[
-                      { position: "absolute", width: 110, height: 110, opacity: 0.45 },
+                      {
+                        position: "absolute",
+                        width: 110,
+                        height: 110,
+                        opacity: 0.85,
+                        // @ts-ignore - mixBlendMode is supported on RN 0.79+ / Expo SDK 54 web & native
+                        mixBlendMode: "screen",
+                      },
                       pos,
                     ]}
                     resizeMode="contain"
