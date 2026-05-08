@@ -763,7 +763,7 @@ function LicenceScreen({
                   <Image
                     key={i}
                     source={{
-                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/0jf1o4bk_a96ebfcc-b707-47d6-bc40-05891cd936dc_removalai_preview.png",
+                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/i7yv50gx_IMG_5224.jpeg",
                     }}
                     style={[
                       { position: "absolute", width: 110, height: 110, opacity: 0.45 },
