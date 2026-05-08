@@ -1483,11 +1483,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tabBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 22,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 999,
   },
-  tabBtnActive: { backgroundColor: DARK },
+  tabBtnActive: { backgroundColor: "#6b7280" },
   tabText: { color: MUTED, fontWeight: "600", fontSize: 15 },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
