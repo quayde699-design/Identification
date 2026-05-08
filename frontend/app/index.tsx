@@ -762,18 +762,9 @@ function LicenceScreen({
                 ].map((pos, i) => (
                   <Image
                     key={i}
-                    source={{
-                      uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/i7yv50gx_IMG_5224.jpeg",
-                    }}
+                    source={require("../assets/watermark.png")}
                     style={[
-                      {
-                        position: "absolute",
-                        width: 110,
-                        height: 110,
-                        opacity: 0.85,
-                        // @ts-ignore - mixBlendMode is supported on RN 0.79+ / Expo SDK 54 web & native
-                        mixBlendMode: "screen",
-                      },
+                      { position: "absolute", width: 110, height: 110, opacity: 0.85 },
                       pos,
                     ]}
                     resizeMode="contain"
@@ -892,6 +883,26 @@ function LicenceScreen({
 
               <Text style={styles.sectionTitle}>Other details</Text>
               <Field label="Card number" value={data.cardNumber || "—"} />
+
+              <View style={styles.col}>
+                <Text style={styles.fieldLabel}>Victoria Police barcode</Text>
+                <View style={styles.barcodeBox} testID="barcode">
+                  {Array.from({ length: 60 }).map((_, i) => {
+                    const w = (i * 7) % 5 + 1;
+                    return (
+                      <View
+                        key={i}
+                        style={{
+                          width: w,
+                          marginRight: ((i * 3) % 4) + 1,
+                          height: 70,
+                          backgroundColor: "#0f1722",
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
             </View>
           )}
 
@@ -1539,6 +1550,17 @@ const styles = StyleSheet.create({
     color: DARK,
     marginTop: 8,
     marginBottom: 14,
+  },
+  barcodeBox: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#e6e8ec",
+    marginTop: 6,
+    overflow: "hidden",
   },
 
   emptyWrap: {
