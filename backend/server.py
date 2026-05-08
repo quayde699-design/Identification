@@ -4,6 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import random
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -18,6 +19,15 @@ db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+
+def _gen_permit() -> str:
+    n = "".join(str(random.randint(0, 9)) for _ in range(9))
+    return f"{n[0:3]} {n[3:6]} {n[6:9]}"
+
+
+def _gen_card() -> str:
+    return "P" + "".join(str(random.randint(0, 9)) for _ in range(7))
 
 
 # ---------- Models ----------
@@ -80,12 +90,17 @@ async def create_account(payload: AccountCreate):
     )
     if existing:
         raise HTTPException(status_code=409, detail="Codes already in use")
+    licence = payload.licence or Licence()
+    if not licence.permitNumber:
+        licence.permitNumber = _gen_permit()
+    if not licence.cardNumber:
+        licence.cardNumber = _gen_card()
     acc = Account(
         name=payload.name,
         digits=payload.digits,
         letters=payload.letters.upper(),
         locked=False,
-        licence=payload.licence or Licence(),
+        licence=licence,
     )
     await db.accounts.insert_one(acc.model_dump())
     return acc
@@ -132,6 +147,20 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def backfill_numbers():
+    cursor = db.accounts.find({}, {"_id": 0})
+    async for doc in cursor:
+        l = doc.get("licence") or {}
+        update = {}
+        if not l.get("permitNumber"):
+            update["licence.permitNumber"] = _gen_permit()
+        if not l.get("cardNumber"):
+            update["licence.cardNumber"] = _gen_card()
+        if update:
+            await db.accounts.update_one({"id": doc["id"]}, {"$set": update})
 
 
 @app.on_event("shutdown")
