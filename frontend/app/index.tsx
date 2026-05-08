@@ -764,7 +764,7 @@ function LicenceScreen({
                     key={i}
                     source={require("../assets/watermark.png")}
                     style={[
-                      { position: "absolute", width: 110, height: 110, opacity: 0.85 },
+                      { position: "absolute", width: 110, height: 110, opacity: 0.5 },
                       pos,
                     ]}
                     resizeMode="contain"
