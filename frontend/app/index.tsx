@@ -949,7 +949,11 @@ function LicenceScreen({
             )}
             <TouchableOpacity
               style={styles.dateDoneBtn}
-              onPress={() => setDatePickerField(null)}
+              onPress={async () => {
+                await onUpdateLicence(draft);
+                setRefreshedAt(new Date());
+                setDatePickerField(null);
+              }}
               testID="date-done"
             >
               <Text style={styles.dateDoneText}>Done</Text>
@@ -1051,9 +1055,17 @@ function WheelColumn({
         onScroll={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
           const clamped = Math.max(0, Math.min(data.length - 1, idx));
-          if (clamped !== centerIdx) setCenterIdx(clamped);
+          if (clamped !== centerIdx) {
+            setCenterIdx(clamped);
+            onChange(clamped);
+          }
         }}
         scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          const clamped = Math.max(0, Math.min(data.length - 1, idx));
+          onChange(clamped);
+        }}
         onMomentumScrollEnd={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
           const clamped = Math.max(0, Math.min(data.length - 1, idx));
@@ -1099,23 +1111,30 @@ function WheelDatePicker({
   const years: string[] = [];
   for (let y = 1950; y <= 2050; y++) years.push(String(y));
 
-  const [day, setDay] = useState(value.getDate());
-  const [month, setMonth] = useState(value.getMonth());
-  const [year, setYear] = useState(value.getFullYear());
+  const dRef = React.useRef({
+    day: value.getDate(),
+    month: value.getMonth(),
+    year: value.getFullYear(),
+  });
+  const [, force] = React.useState(0);
 
+  const apply = (changes: Partial<{ day: number; month: number; year: number }>) => {
+    dRef.current = { ...dRef.current, ...changes };
+    const { year, month, day } = dRef.current;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const safeDay = Math.min(day, daysInMonth);
+    if (safeDay !== day) dRef.current.day = safeDay;
+    onChange(new Date(year, month, safeDay));
+    force((n) => n + 1);
+  };
+
+  const { day, month, year } = dRef.current;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days: string[] = [];
   for (let d = 1; d <= daysInMonth; d++) days.push(String(d).padStart(2, "0"));
 
-  // Push changes up
-  React.useEffect(() => {
-    const safeDay = Math.min(day, daysInMonth);
-    onChange(new Date(year, month, safeDay));
-  }, [day, month, year]);
-
   return (
     <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 6 }}>
-      {/* selection band */}
       <View
         pointerEvents="none"
         style={{
@@ -1135,19 +1154,19 @@ function WheelDatePicker({
       <WheelColumn
         data={days}
         initialIndex={Math.min(day - 1, days.length - 1)}
-        onChange={(i) => setDay(i + 1)}
+        onChange={(i) => apply({ day: i + 1 })}
         width={70}
       />
       <WheelColumn
         data={months}
         initialIndex={month}
-        onChange={(i) => setMonth(i)}
+        onChange={(i) => apply({ month: i })}
         width={90}
       />
       <WheelColumn
         data={years}
         initialIndex={years.indexOf(String(year))}
-        onChange={(i) => setYear(parseInt(years[i], 10))}
+        onChange={(i) => apply({ year: parseInt(years[i], 10) })}
         width={90}
       />
     </View>
