@@ -36,6 +36,8 @@ const ADMIN_LETTERS = "QUAYDE";
 const KEY_ACCOUNTS = "@vic_accounts_v1";
 const KEY_CURRENT = "@vic_current_id";
 
+const API_BASE = (process.env.EXPO_PUBLIC_BACKEND_URL || "") + "/api";
+
 // ---------- Types ----------
 type Licence = {
   permitNumber: string;
@@ -113,34 +115,49 @@ export default function Index() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
 
-  // Load persisted state
+  // Load accounts from backend
   useEffect(() => {
-    (async () => {
-      try {
-        const a = await AsyncStorage.getItem(KEY_ACCOUNTS);
-        if (a) setAccounts(JSON.parse(a));
-      } catch {}
-    })();
+    refresh();
   }, []);
 
-  const saveAccounts = async (list: Account[]) => {
-    setAccounts(list);
-    await AsyncStorage.setItem(KEY_ACCOUNTS, JSON.stringify(list));
+  const refresh = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/accounts`);
+      if (res.ok) {
+        const data = await res.json();
+        setAccounts(data);
+      }
+    } catch (e) {
+      console.log("load error", e);
+    }
   };
 
   const currentAccount = accounts.find((x) => x.id === currentId) || null;
 
   const updateCurrentLicence = async (l: Licence) => {
     if (!currentAccount) return;
-    const next = accounts.map((a) =>
-      a.id === currentAccount.id ? { ...a, licence: l } : a
-    );
-    await saveAccounts(next);
+    try {
+      const res = await fetch(`${API_BASE}/accounts/${currentAccount.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licence: l }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      }
+    } catch (e) {
+      console.log("save error", e);
+    }
+  };
+
+  const saveAccounts = async (_list: Account[]) => {
+    // Kept for compat in admin screen — actual writes happen via specific endpoints
+    await refresh();
   };
 
   const logout = async () => {
     setCurrentId(null);
-    await AsyncStorage.removeItem(KEY_CURRENT);
     setScreen("login");
   };
 
@@ -168,7 +185,7 @@ export default function Index() {
     return (
       <AdminScreen
         accounts={accounts}
-        onSaveAccounts={saveAccounts}
+        onRefresh={refresh}
         onBack={() => setScreen("login")}
       />
     );
@@ -203,13 +220,19 @@ function LoginScreen({
   const [error, setError] = useState("");
   const insets = useSafeAreaInsets();
 
-  const tryLogin = () => {
+  const tryLogin = async () => {
     setError("");
     if (digits.length !== 6 || letters.length !== 3) {
       setError("Wrong Digit or Letter");
       return;
     }
-    const acc = accounts.find(
+    // Fetch latest from server so newly-created accounts are seen instantly
+    let latest: Account[] = accounts;
+    try {
+      const res = await fetch(`${API_BASE}/accounts`);
+      if (res.ok) latest = await res.json();
+    } catch {}
+    const acc = latest.find(
       (a) => a.digits === digits && a.letters.toUpperCase() === letters.toUpperCase()
     );
     if (!acc) {
@@ -360,11 +383,11 @@ function AdminLoginScreen({
 // ---------- Admin Screen ----------
 function AdminScreen({
   accounts,
-  onSaveAccounts,
+  onRefresh,
   onBack,
 }: {
   accounts: Account[];
-  onSaveAccounts: (a: Account[]) => Promise<void>;
+  onRefresh: () => Promise<void>;
   onBack: () => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -387,33 +410,59 @@ function AdminScreen({
       Alert.alert("Missing", "Need a 6-digit code and 3-letter code.");
       return;
     }
-    if (accounts.some((a) => a.digits === digits && a.letters.toUpperCase() === letters.toUpperCase())) {
-      Alert.alert("Duplicate", "Those codes are already in use.");
-      return;
+    try {
+      const res = await fetch(`${API_BASE}/accounts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          digits,
+          letters: letters.toUpperCase(),
+          licence: {
+            permitNumber: formatPermit(randomDigits(9)),
+            cardNumber: "P" + randomDigits(7),
+            expiry: "15 Jan 2026",
+            licenceType: "Car",
+            dob: "01 Jan 2008",
+            addressLine1: "",
+            addressLine2: "",
+            signatureName: "",
+            permitStatus: "Current",
+            proficiency: "Probationary",
+            issueDate: "15 Jan 2027",
+            photoUri: "",
+          },
+        }),
+      });
+      if (res.status === 409) {
+        Alert.alert("Duplicate", "Those codes are already in use.");
+        return;
+      }
+      if (!res.ok) {
+        Alert.alert("Error", "Could not create account.");
+        return;
+      }
+      await onRefresh();
+      setName("");
+      setDigits("");
+      setLetters("");
+      setCreateOpen(false);
+    } catch (e) {
+      Alert.alert("Network error", "Could not reach server.");
     }
-    const acc: Account = {
-      id: newId(),
-      name: name.trim(),
-      digits,
-      letters: letters.toUpperCase(),
-      locked: false,
-      licence: {
-        ...DEFAULT_LICENCE,
-        permitNumber: formatPermit(randomDigits(9)),
-        cardNumber: "P" + randomDigits(7),
-      },
-    };
-    await onSaveAccounts([...accounts, acc]);
-    setName("");
-    setDigits("");
-    setLetters("");
-    setCreateOpen(false);
   };
 
   const toggleLock = async (id: string) => {
-    await onSaveAccounts(
-      accounts.map((a) => (a.id === id ? { ...a, locked: !a.locked } : a))
-    );
+    const a = accounts.find((x) => x.id === id);
+    if (!a) return;
+    try {
+      await fetch(`${API_BASE}/accounts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locked: !a.locked }),
+      });
+      await onRefresh();
+    } catch {}
   };
 
   const remove = (id: string) => {
@@ -421,7 +470,10 @@ function AdminScreen({
   };
   const confirmDelete = async () => {
     if (!deleteId) return;
-    await onSaveAccounts(accounts.filter((a) => a.id !== deleteId));
+    try {
+      await fetch(`${API_BASE}/accounts/${deleteId}`, { method: "DELETE" });
+      await onRefresh();
+    } catch {}
     setDeleteId(null);
   };
 
