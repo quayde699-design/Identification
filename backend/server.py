@@ -223,6 +223,57 @@ async def delete_support(request_id: str):
     return {"ok": True}
 
 
+# ---------- Products / pricing ----------
+DEFAULT_PRODUCTS = [
+    {"id": "base",            "name": "Base Digi ID",                      "price": 35.0},
+    {"id": "premium_starter", "name": "Premium Starter Digi ID",           "price": 45.0},
+    {"id": "managers",        "name": "Managers Special Digi ID",          "price": 25.0},
+    {"id": "managers_premium","name": "Managers Special Premium Digi ID",  "price": 35.0},
+]
+
+
+class Product(BaseModel):
+    id: str
+    name: str
+    price: float
+
+
+class ProductsUpdate(BaseModel):
+    products: List[Product]
+
+
+async def _ensure_products():
+    existing = await db.settings.find_one({"_id": "products"})
+    if not existing:
+        await db.settings.insert_one({"_id": "products", "products": DEFAULT_PRODUCTS})
+
+
+@api_router.get("/products", response_model=List[Product])
+async def get_products():
+    await _ensure_products()
+    doc = await db.settings.find_one({"_id": "products"})
+    return [Product(**p) for p in (doc or {}).get("products", DEFAULT_PRODUCTS)]
+
+
+@api_router.put("/products", response_model=List[Product])
+async def update_products(payload: ProductsUpdate):
+    # Validate ids match the canonical set and prices are sane
+    incoming = {p.id: p for p in payload.products}
+    merged: List[dict] = []
+    for d in DEFAULT_PRODUCTS:
+        p = incoming.get(d["id"])
+        price = float(p.price) if p else float(d["price"])
+        if price < 0:
+            price = 0.0
+        merged.append({"id": d["id"], "name": d["name"], "price": price})
+    await db.settings.update_one(
+        {"_id": "products"},
+        {"$set": {"products": merged}},
+        upsert=True,
+    )
+    return [Product(**p) for p in merged]
+
+
 app.include_router(api_router)
 
 app.add_middleware(

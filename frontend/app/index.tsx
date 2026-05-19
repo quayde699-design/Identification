@@ -800,17 +800,39 @@ function AdminScreen({
   type CreateStep = "details" | "payment";
   const [createStep, setCreateStep] = useState<CreateStep>("details");
   const [createError, setCreateError] = useState("");
-  const [itemDesc, setItemDesc] = useState("Probationary Driver Licence");
-  const [itemQty, setItemQty] = useState(1);
-  // Price in CENTS so the keypad can build it up like a POS terminal
-  const [priceCents, setPriceCents] = useState(0);
+  const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>("base");
   const [discountChoice, setDiscountChoice] = useState<"none" | "5" | "10" | "15" | "custom">("none");
   const [customDiscount, setCustomDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card" | "EFTPOS" | "Bank Transfer">("Cash");
-  const [keypadOpen, setKeypadOpen] = useState(false);
+
+  // Pricing-manager modal (admin can change product prices here)
+  const [pricesOpen, setPricesOpen] = useState(false);
+  const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [pricesError, setPricesError] = useState("");
 
   // Receipt viewer (post-creation + for existing accounts)
   const [receiptAccount, setReceiptAccount] = useState<Account | null>(null);
+
+  const loadProducts = React.useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/products`);
+      if (r.ok) {
+        const data = await r.json();
+        setProducts(data);
+        if (!data.find((p: any) => p.id === selectedProductId)) {
+          setSelectedProductId(data[0]?.id || "base");
+        }
+      }
+    } catch {}
+  }, [selectedProductId]);
+
+  React.useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
 
   const resetCreateForm = () => {
     setName("");
@@ -818,9 +840,7 @@ function AdminScreen({
     setLetters("");
     setCreateStep("details");
     setCreateError("");
-    setItemDesc("Probationary Driver Licence");
-    setItemQty(1);
-    setPriceCents(0);
+    setSelectedProductId(products[0]?.id || "base");
     setDiscountChoice("none");
     setCustomDiscount("");
     setPaymentMethod("Cash");
@@ -837,16 +857,14 @@ function AdminScreen({
     return 0;
   };
 
-  const subtotalCents = () => priceCents * Math.max(1, itemQty);
-  const discountCents = () => Math.round((subtotalCents() * effectiveDiscountPercent()) / 100);
-  const totalCents = () => Math.max(0, subtotalCents() - discountCents());
+  const unitPrice = selectedProduct?.price || 0;
+  const subtotalAmt = unitPrice; // qty fixed at 1
+  const discountAmt = (subtotalAmt * effectiveDiscountPercent()) / 100;
+  const totalAmt = Math.max(0, subtotalAmt - discountAmt);
 
-  const fmtMoney = (cents: number) => {
-    const sign = cents < 0 ? "-" : "";
-    const v = Math.abs(cents);
-    const dollars = Math.floor(v / 100);
-    const c = v % 100;
-    return `${sign}$${dollars}.${String(c).padStart(2, "0")}`;
+  const fmtMoney = (v: number) => {
+    const sign = v < 0 ? "-" : "";
+    return `${sign}$${Math.abs(v).toFixed(2)}`;
   };
   const [supportRequests, setSupportRequests] = useState<
     { id: string; reason: string; channel: string; createdAt: string; seen: boolean }[]
@@ -918,21 +936,17 @@ function AdminScreen({
 
   const create = async () => {
     if (creating) return;
-    if (!itemDesc.trim()) {
-      setCreateError("Enter what the customer is paying for.");
-      return;
-    }
-    if (priceCents <= 0) {
-      setCreateError("Tap the price to set an amount.");
+    if (!selectedProduct) {
+      setCreateError("Pick a product first.");
       return;
     }
     setCreateError("");
     setCreating(true);
     try {
       const receipt = {
-        description: itemDesc.trim(),
-        qty: Math.max(1, itemQty),
-        unitPrice: priceCents / 100,
+        description: selectedProduct.name,
+        qty: 1,
+        unitPrice: selectedProduct.price,
         discountPercent: effectiveDiscountPercent(),
         paymentMethod,
       };
@@ -1051,6 +1065,24 @@ function AdminScreen({
           <View style={adminStyles.countChip}>
             <Text style={adminStyles.countChipText}>{accounts.length}</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => {
+              setDraftPrices(
+                products.reduce((acc, p) => {
+                  acc[p.id] = String(p.price);
+                  return acc;
+                }, {} as Record<string, string>)
+              );
+              setPricesError("");
+              setPricesOpen(true);
+            }}
+            style={adminStyles.managePricesBtn}
+            testID="manage-prices-btn"
+            activeOpacity={0.85}
+          >
+            <Ionicons name="pricetags" size={14} color={ORANGE} />
+            <Text style={adminStyles.managePricesText}>Manage prices</Text>
+          </TouchableOpacity>
         </View>
 
         {accounts.length === 0 && (
@@ -1381,58 +1413,46 @@ function AdminScreen({
                 </View>
               ) : (
                 <View style={authStyles.formCard}>
-                  {/* Item description */}
-                  <View style={authStyles.fieldGroup}>
-                    <Text style={authStyles.label}>Description</Text>
-                    <View style={authStyles.inputWrap}>
-                      <Ionicons name="pricetag-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                      <TextInput
-                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "600", fontSize: 15 }]}
-                        value={itemDesc}
-                        onChangeText={setItemDesc}
-                        placeholder="What did they pay for?"
-                        placeholderTextColor="#bdc1c8"
-                        testID="receipt-desc"
-                      />
-                    </View>
+                  {/* Product options */}
+                  <Text style={authStyles.label}>Choose a product</Text>
+                  <View style={{ gap: 10, marginTop: 4, marginBottom: 6 }}>
+                    {products.map((p) => {
+                      const active = p.id === selectedProductId;
+                      return (
+                        <TouchableOpacity
+                          key={p.id}
+                          onPress={() => setSelectedProductId(p.id)}
+                          activeOpacity={0.85}
+                          style={[
+                            adminStyles.productCard,
+                            active && adminStyles.productCardActive,
+                          ]}
+                          testID={`product-${p.id}`}
+                        >
+                          <View style={[
+                            adminStyles.productRadio,
+                            active && adminStyles.productRadioActive,
+                          ]}>
+                            {active && <View style={adminStyles.productRadioDot} />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[
+                              adminStyles.productName,
+                              active && { color: "#fff" },
+                            ]}>
+                              {p.name}
+                            </Text>
+                          </View>
+                          <Text style={[
+                            adminStyles.productPrice,
+                            active && { color: "#fff" },
+                          ]}>
+                            {fmtMoney(p.price)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-
-                  {/* Quantity stepper */}
-                  <View style={[authStyles.fieldGroup, { flexDirection: "row", alignItems: "center" }]}>
-                    <Text style={[authStyles.label, { flex: 1, marginBottom: 0 }]}>Quantity</Text>
-                    <View style={adminStyles.qtyRow}>
-                      <TouchableOpacity
-                        onPress={() => setItemQty((q) => Math.max(1, q - 1))}
-                        style={adminStyles.qtyBtn}
-                        testID="qty-minus"
-                      >
-                        <Ionicons name="remove" size={18} color={DARK} />
-                      </TouchableOpacity>
-                      <Text style={adminStyles.qtyVal}>{itemQty}</Text>
-                      <TouchableOpacity
-                        onPress={() => setItemQty((q) => Math.min(999, q + 1))}
-                        style={adminStyles.qtyBtn}
-                        testID="qty-plus"
-                      >
-                        <Ionicons name="add" size={18} color={DARK} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Price tile - opens keypad on tap */}
-                  <Text style={authStyles.label}>Unit price</Text>
-                  <TouchableOpacity
-                    style={adminStyles.priceTile}
-                    onPress={() => setKeypadOpen(true)}
-                    testID="open-price-keypad"
-                    activeOpacity={0.85}
-                  >
-                    <View>
-                      <Text style={adminStyles.priceTileHint}>Tap to enter price</Text>
-                      <Text style={adminStyles.priceTileVal}>{fmtMoney(priceCents)}</Text>
-                    </View>
-                    <Ionicons name="calculator-outline" size={26} color={ORANGE} />
-                  </TouchableOpacity>
 
                   {/* Discount chips */}
                   <Text style={[authStyles.label, { marginTop: 18 }]}>Discount</Text>
@@ -1505,7 +1525,7 @@ function AdminScreen({
                   <View style={adminStyles.totalsBox}>
                     <View style={adminStyles.totalsRow}>
                       <Text style={adminStyles.totalsLabel}>Subtotal</Text>
-                      <Text style={adminStyles.totalsVal}>{fmtMoney(subtotalCents())}</Text>
+                      <Text style={adminStyles.totalsVal}>{fmtMoney(subtotalAmt)}</Text>
                     </View>
                     {effectiveDiscountPercent() > 0 && (
                       <View style={adminStyles.totalsRow}>
@@ -1513,13 +1533,13 @@ function AdminScreen({
                           Discount ({effectiveDiscountPercent()}%)
                         </Text>
                         <Text style={[adminStyles.totalsVal, { color: "#1f9d55" }]}>
-                          -{fmtMoney(discountCents())}
+                          -{fmtMoney(discountAmt)}
                         </Text>
                       </View>
                     )}
                     <View style={[adminStyles.totalsRow, { marginTop: 6 }]}>
                       <Text style={adminStyles.totalsLabelBig}>Total</Text>
-                      <Text style={adminStyles.totalsValBig}>{fmtMoney(totalCents())}</Text>
+                      <Text style={adminStyles.totalsValBig}>{fmtMoney(totalAmt)}</Text>
                     </View>
                   </View>
 
@@ -1550,64 +1570,115 @@ function AdminScreen({
         </SafeAreaView>
       </Modal>
 
-      {/* Price keypad modal */}
-      <Modal
-        visible={keypadOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setKeypadOpen(false)}
-      >
-        <View style={adminStyles.keypadBackdrop}>
-          <View style={adminStyles.keypadCard}>
-            <Text style={adminStyles.keypadHint}>Unit price</Text>
-            <Text style={adminStyles.keypadDisplay}>{fmtMoney(priceCents)}</Text>
-            <View style={adminStyles.keypadGrid}>
-              {["1","2","3","4","5","6","7","8","9","00","0","⌫"].map((k) => (
-                <TouchableOpacity
-                  key={k}
-                  style={adminStyles.keypadKey}
-                  onPress={() => {
-                    if (k === "⌫") {
-                      setPriceCents((p) => Math.floor(p / 10));
-                    } else if (k === "00") {
-                      setPriceCents((p) => Math.min(99999999, p * 100));
-                    } else {
-                      const d = parseInt(k, 10);
-                      setPriceCents((p) => Math.min(99999999, p * 10 + d));
-                    }
-                  }}
-                  testID={`key-${k}`}
-                  activeOpacity={0.6}
-                >
-                  <Text style={adminStyles.keypadKeyText}>{k}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-              <TouchableOpacity
-                style={[adminStyles.keypadAction, { backgroundColor: "#F2F4F7" }]}
-                onPress={() => setPriceCents(0)}
-                testID="key-clear"
-              >
-                <Text style={[adminStyles.keypadActionText, { color: DARK }]}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[adminStyles.keypadAction, { backgroundColor: ORANGE }]}
-                onPress={() => setKeypadOpen(false)}
-                testID="key-done"
-              >
-                <Text style={[adminStyles.keypadActionText, { color: "#fff" }]}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Receipt viewer */}
       <ReceiptModal
         account={receiptAccount}
         onClose={() => setReceiptAccount(null)}
       />
+
+      {/* Pricing manager modal */}
+      <Modal
+        visible={pricesOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPricesOpen(false)}
+      >
+        <View style={adminStyles.keypadBackdrop}>
+          <View style={[adminStyles.keypadCard, { paddingBottom: 22 }]}>
+            <Text style={[adminStyles.keypadHint, { marginBottom: 4 }]}>Manage prices</Text>
+            <Text style={{ color: DARK, fontSize: 22, fontWeight: "900", marginBottom: 14 }}>
+              Product pricing
+            </Text>
+
+            {products.map((p) => (
+              <View key={p.id} style={{ marginBottom: 12 }}>
+                <Text style={[authStyles.label, { marginBottom: 6 }]}>{p.name}</Text>
+                <View style={authStyles.inputWrap}>
+                  <Text style={{ marginLeft: 4, marginRight: 6, color: MUTED, fontWeight: "800", fontSize: 16 }}>$</Text>
+                  <TextInput
+                    style={[authStyles.input, { letterSpacing: 0, fontWeight: "700" }]}
+                    value={draftPrices[p.id] ?? String(p.price)}
+                    onChangeText={(v) => {
+                      const cleaned = v.replace(/[^0-9.]/g, "").slice(0, 10);
+                      setDraftPrices((prev) => ({ ...prev, [p.id]: cleaned }));
+                      if (pricesError) setPricesError("");
+                    }}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#bdc1c8"
+                    testID={`price-input-${p.id}`}
+                  />
+                </View>
+              </View>
+            ))}
+
+            {pricesError ? (
+              <View style={[authStyles.errorBox, { marginTop: 4 }]}>
+                <Ionicons name="alert-circle" size={16} color="#B42318" />
+                <Text style={authStyles.errorText}>{pricesError}</Text>
+              </View>
+            ) : null}
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+              <TouchableOpacity
+                style={[adminStyles.keypadAction, { backgroundColor: "#F2F4F7" }]}
+                onPress={() => {
+                  setPricesOpen(false);
+                  setDraftPrices({});
+                  setPricesError("");
+                }}
+                disabled={savingPrices}
+                testID="prices-cancel"
+              >
+                <Text style={[adminStyles.keypadActionText, { color: DARK }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[adminStyles.keypadAction, { backgroundColor: ORANGE }, savingPrices && { opacity: 0.85 }]}
+                disabled={savingPrices}
+                onPress={async () => {
+                  // Validate
+                  const merged = products.map((p) => {
+                    const raw = draftPrices[p.id];
+                    const n = raw === undefined ? p.price : parseFloat(raw || "0");
+                    return { id: p.id, name: p.name, price: isNaN(n) ? p.price : n };
+                  });
+                  if (merged.some((m) => m.price < 0)) {
+                    setPricesError("Prices can't be negative.");
+                    return;
+                  }
+                  setSavingPrices(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/products`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ products: merged }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setProducts(data);
+                      setDraftPrices({});
+                      setPricesOpen(false);
+                    } else {
+                      setPricesError("Couldn't save prices. Please try again.");
+                    }
+                  } catch {
+                    setPricesError("Couldn't reach the server.");
+                  } finally {
+                    setSavingPrices(false);
+                  }
+                }}
+                testID="prices-save"
+              >
+                {savingPrices ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[adminStyles.keypadActionText, { color: "#fff" }]}>Save prices</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -3067,6 +3138,58 @@ const adminStyles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 13,
   },
+
+  // Product option cards (in payment step)
+  productCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  productCardActive: {
+    backgroundColor: DARK,
+    borderColor: DARK,
+  },
+  productRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#cbd0d8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  productRadioActive: {
+    borderColor: "#fff",
+  },
+  productRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#fff",
+  },
+  productName: { color: DARK, fontWeight: "800", fontSize: 14 },
+  productPrice: { color: DARK, fontWeight: "900", fontSize: 18, letterSpacing: -0.3 },
+
+  // "Manage prices" pill next to Accounts header
+  managePricesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#FFF1EC",
+    borderWidth: 1,
+    borderColor: "#FFD9C8",
+    marginLeft: 8,
+  },
+  managePricesText: { color: ORANGE, fontWeight: "800", fontSize: 12 },
 
   // Quantity stepper
   qtyRow: {
