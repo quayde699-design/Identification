@@ -1859,11 +1859,20 @@ function LicenceScreen({
 
   const data = account.licence;
 
+  // Master read-only switch — the "Test A User" demo account is fully locked:
+  // nothing on the licence (including the photo) can be edited from any device.
+  const isReadOnly = account.name.trim().toLowerCase() === "test a user";
+
   const openEdit = () => {
+    if (isReadOnly) return;
     setDraft(data);
     setEditVisible(true);
   };
   const saveEdit = useCallback(async () => {
+    if (isReadOnly) {
+      setEditVisible(false);
+      return;
+    }
     if (saving) return;
     setSaving(true);
     try {
@@ -1873,9 +1882,10 @@ function LicenceScreen({
     } finally {
       setSaving(false);
     }
-  }, [draft, onUpdateLicence, saving]);
+  }, [draft, onUpdateLicence, saving, isReadOnly]);
 
   const pickPhoto = async () => {
+    if (isReadOnly) return;
     if (pickingPhoto) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -1989,8 +1999,20 @@ function LicenceScreen({
                 Presenting a QR code allows your driver licence information to be scanned and shared.
               </Text>
               <Text style={styles.qrPrompt}>Do you consent to share your information?</Text>
-              <TouchableOpacity style={styles.qrButton} onPress={openEdit} testID="reveal-qr">
-                <Text style={styles.qrButtonText}>Reveal QR code</Text>
+              <TouchableOpacity
+                style={[styles.qrButton, isReadOnly && { backgroundColor: "#6b7280" }]}
+                onPress={openEdit}
+                disabled={isReadOnly}
+                testID="reveal-qr"
+              >
+                {isReadOnly ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="lock-closed" size={14} color="#fff" />
+                    <Text style={styles.qrButtonText}>Read-only account</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.qrButtonText}>Reveal QR code</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
