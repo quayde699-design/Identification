@@ -59,6 +59,16 @@ type Licence = {
   photoUri: string;
 };
 
+type Receipt = {
+  number: string;
+  createdAt: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+  discountPercent: number;
+  paymentMethod: string;
+};
+
 type Account = {
   id: string;
   name: string;       // e.g. "Quayde A Burnham"
@@ -66,6 +76,7 @@ type Account = {
   letters: string;    // 3-letter
   locked: boolean;
   licence: Licence;
+  receipt?: Receipt | null;
 };
 
 const DEFAULT_LICENCE: Licence = {
@@ -784,6 +795,59 @@ function AdminScreen({
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [lockingId, setLockingId] = useState<string | null>(null);
+
+  // ----- Create flow: step machine + receipt builder state -----
+  type CreateStep = "details" | "payment";
+  const [createStep, setCreateStep] = useState<CreateStep>("details");
+  const [createError, setCreateError] = useState("");
+  const [itemDesc, setItemDesc] = useState("Probationary Driver Licence");
+  const [itemQty, setItemQty] = useState(1);
+  // Price in CENTS so the keypad can build it up like a POS terminal
+  const [priceCents, setPriceCents] = useState(0);
+  const [discountChoice, setDiscountChoice] = useState<"none" | "5" | "10" | "15" | "custom">("none");
+  const [customDiscount, setCustomDiscount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card" | "EFTPOS" | "Bank Transfer">("Cash");
+  const [keypadOpen, setKeypadOpen] = useState(false);
+
+  // Receipt viewer (post-creation + for existing accounts)
+  const [receiptAccount, setReceiptAccount] = useState<Account | null>(null);
+
+  const resetCreateForm = () => {
+    setName("");
+    setDigits("");
+    setLetters("");
+    setCreateStep("details");
+    setCreateError("");
+    setItemDesc("Probationary Driver Licence");
+    setItemQty(1);
+    setPriceCents(0);
+    setDiscountChoice("none");
+    setCustomDiscount("");
+    setPaymentMethod("Cash");
+  };
+
+  const effectiveDiscountPercent = (): number => {
+    if (discountChoice === "5") return 5;
+    if (discountChoice === "10") return 10;
+    if (discountChoice === "15") return 15;
+    if (discountChoice === "custom") {
+      const n = parseFloat(customDiscount || "0");
+      return isNaN(n) ? 0 : Math.max(0, Math.min(100, n));
+    }
+    return 0;
+  };
+
+  const subtotalCents = () => priceCents * Math.max(1, itemQty);
+  const discountCents = () => Math.round((subtotalCents() * effectiveDiscountPercent()) / 100);
+  const totalCents = () => Math.max(0, subtotalCents() - discountCents());
+
+  const fmtMoney = (cents: number) => {
+    const sign = cents < 0 ? "-" : "";
+    const v = Math.abs(cents);
+    const dollars = Math.floor(v / 100);
+    const c = v % 100;
+    return `${sign}$${dollars}.${String(c).padStart(2, "0")}`;
+  };
   const [supportRequests, setSupportRequests] = useState<
     { id: string; reason: string; channel: string; createdAt: string; seen: boolean }[]
   >([]);
@@ -839,18 +903,39 @@ function AdminScreen({
     setLetters(randomLetters(3));
   };
 
-  const create = async () => {
-    if (creating) return;
+  const goToPaymentStep = () => {
+    setCreateError("");
     if (!name.trim()) {
-      Alert.alert("Missing", "Enter a name for the account.");
+      setCreateError("Enter a name for the account.");
       return;
     }
     if (digits.length !== 6 || letters.length !== 3) {
-      Alert.alert("Missing", "Need a 6-digit code and 3-letter code.");
+      setCreateError("Need a 6-digit code and 3-letter code.");
       return;
     }
+    setCreateStep("payment");
+  };
+
+  const create = async () => {
+    if (creating) return;
+    if (!itemDesc.trim()) {
+      setCreateError("Enter what the customer is paying for.");
+      return;
+    }
+    if (priceCents <= 0) {
+      setCreateError("Tap the price to set an amount.");
+      return;
+    }
+    setCreateError("");
     setCreating(true);
     try {
+      const receipt = {
+        description: itemDesc.trim(),
+        qty: Math.max(1, itemQty),
+        unitPrice: priceCents / 100,
+        discountPercent: effectiveDiscountPercent(),
+        paymentMethod,
+      };
       const res = await fetch(`${API_BASE}/accounts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -872,23 +957,25 @@ function AdminScreen({
             issueDate: "15 Jan 2027",
             photoUri: "",
           },
+          receipt,
         }),
       });
       if (res.status === 409) {
-        Alert.alert("Duplicate", "Those codes are already in use.");
+        setCreateError("Those codes are already in use.");
         return;
       }
       if (!res.ok) {
-        Alert.alert("Error", "Could not create account.");
+        setCreateError("Could not create account. Please try again.");
         return;
       }
+      const newAccount: Account = await res.json();
       await onRefresh();
-      setName("");
-      setDigits("");
-      setLetters("");
       setCreateOpen(false);
+      resetCreateForm();
+      // Show the receipt right after creation
+      setReceiptAccount(newAccount);
     } catch (e) {
-      Alert.alert("Network error", "Could not reach server.");
+      setCreateError("Could not reach the server. Check your connection.");
     } finally {
       setCreating(false);
     }
@@ -942,7 +1029,7 @@ function AdminScreen({
         <Text style={authStyles.topTitle}>Admin console</Text>
         <TouchableOpacity
           onPress={() => {
-            setName("");
+            resetCreateForm();
             randomize();
             setCreateOpen(true);
           }}
@@ -1012,6 +1099,13 @@ function AdminScreen({
                   color={a.locked ? ORANGE : MUTED}
                 />
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setReceiptAccount(a)}
+              style={adminStyles.iconBtn}
+              testID={`receipt-${a.id}`}
+            >
+              <Ionicons name="receipt-outline" size={20} color={ORANGE} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => remove(a.id)}
@@ -1135,96 +1229,512 @@ function AdminScreen({
         </View>
       </Modal>
 
-      {/* Create modal */}
-      <Modal visible={createOpen} animationType="slide" onRequestClose={() => setCreateOpen(false)}>
+      {/* Create modal — 2-step (details -> payment) */}
+      <Modal
+        visible={createOpen}
+        animationType="slide"
+        onRequestClose={() => {
+          setCreateOpen(false);
+          resetCreateForm();
+        }}
+      >
         <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <View style={authStyles.topRow}>
-              <TouchableOpacity onPress={() => setCreateOpen(false)} style={authStyles.backBtn}>
-                <Text style={{ fontSize: 15, color: MUTED, fontWeight: "600" }}>Cancel</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (createStep === "payment") {
+                    setCreateStep("details");
+                    setCreateError("");
+                  } else {
+                    setCreateOpen(false);
+                    resetCreateForm();
+                  }
+                }}
+                style={authStyles.backBtn}
+                testID="create-back"
+              >
+                <Text style={{ fontSize: 15, color: MUTED, fontWeight: "600" }}>
+                  {createStep === "payment" ? "Back" : "Cancel"}
+                </Text>
               </TouchableOpacity>
-              <Text style={authStyles.topTitle}>New account</Text>
-              <TouchableOpacity onPress={create} style={authStyles.backBtn} disabled={creating} testID="create-save">
-                {creating ? (
-                  <ActivityIndicator size="small" color={ORANGE} />
-                ) : (
-                  <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Save</Text>
-                )}
-              </TouchableOpacity>
+              <Text style={authStyles.topTitle}>
+                {createStep === "details" ? "New account" : "Payment"}
+              </Text>
+              {createStep === "details" ? (
+                <TouchableOpacity
+                  onPress={goToPaymentStep}
+                  style={authStyles.backBtn}
+                  testID="create-next"
+                >
+                  <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Next</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={create}
+                  style={authStyles.backBtn}
+                  disabled={creating}
+                  testID="create-save"
+                >
+                  {creating ? (
+                    <ActivityIndicator size="small" color={ORANGE} />
+                  ) : (
+                    <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Create</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
               <View style={[authStyles.hero, { paddingTop: 4, paddingBottom: 18 }]}>
                 <View style={authStyles.heroBadge}>
-                  <Ionicons name="person-add" size={36} color={ORANGE} />
+                  <Ionicons
+                    name={createStep === "details" ? "person-add" : "card-outline"}
+                    size={32}
+                    color={ORANGE}
+                  />
                 </View>
-                <Text style={[authStyles.title, { fontSize: 22 }]}>Create account</Text>
-                <Text style={authStyles.sub}>Give a name and login codes for this licence holder</Text>
+                <Text style={[authStyles.title, { fontSize: 22 }]}>
+                  {createStep === "details" ? "Create account" : "Payment & receipt"}
+                </Text>
+                <Text style={authStyles.sub}>
+                  {createStep === "details"
+                    ? "Give a name and login codes for this licence holder"
+                    : "Set the price, apply a discount and pick how they paid"}
+                </Text>
               </View>
 
-              <View style={authStyles.formCard}>
-                <View style={authStyles.fieldGroup}>
-                  <Text style={authStyles.label}>Full name</Text>
-                  <View style={authStyles.inputWrap}>
-                    <Ionicons name="person-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                    <TextInput
-                      style={[authStyles.input, { letterSpacing: 0, fontWeight: "600" }]}
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="e.g. Quayde A Burnham"
-                      placeholderTextColor="#bdc1c8"
-                      testID="create-name"
-                    />
+              {createStep === "details" ? (
+                <View style={authStyles.formCard}>
+                  <View style={authStyles.fieldGroup}>
+                    <Text style={authStyles.label}>Full name</Text>
+                    <View style={authStyles.inputWrap}>
+                      <Ionicons name="person-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                      <TextInput
+                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "600" }]}
+                        value={name}
+                        onChangeText={(v) => {
+                          setName(v);
+                          if (createError) setCreateError("");
+                        }}
+                        placeholder="e.g. Quayde A Burnham"
+                        placeholderTextColor="#bdc1c8"
+                        testID="create-name"
+                      />
+                    </View>
                   </View>
-                </View>
 
-                <TouchableOpacity
-                  style={adminStyles.randomBtn}
-                  onPress={randomize}
-                  testID="randomize-btn"
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="shuffle" size={16} color="#fff" />
-                  <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={adminStyles.randomBtn}
+                    onPress={randomize}
+                    testID="randomize-btn"
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="shuffle" size={16} color="#fff" />
+                    <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
+                  </TouchableOpacity>
 
-                <View style={authStyles.fieldGroup}>
-                  <Text style={authStyles.label}>6-digit code</Text>
-                  <View style={authStyles.inputWrap}>
-                    <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                    <TextInput
-                      style={authStyles.input}
-                      value={digits}
-                      onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      placeholder="000000"
-                      placeholderTextColor="#bdc1c8"
-                      testID="create-digits"
-                    />
+                  <View style={authStyles.fieldGroup}>
+                    <Text style={authStyles.label}>6-digit code</Text>
+                    <View style={authStyles.inputWrap}>
+                      <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                      <TextInput
+                        style={authStyles.input}
+                        value={digits}
+                        onChangeText={(v) => {
+                          setDigits(v.replace(/\D/g, "").slice(0, 6));
+                          if (createError) setCreateError("");
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        placeholder="000000"
+                        placeholderTextColor="#bdc1c8"
+                        testID="create-digits"
+                      />
+                    </View>
                   </View>
-                </View>
-                <View style={authStyles.fieldGroup}>
-                  <Text style={authStyles.label}>3-letter code</Text>
-                  <View style={authStyles.inputWrap}>
-                    <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                    <TextInput
-                      style={authStyles.input}
-                      value={letters}
-                      onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
-                      autoCapitalize="characters"
-                      maxLength={3}
-                      placeholder="ABC"
-                      placeholderTextColor="#bdc1c8"
-                      testID="create-letters"
-                    />
+                  <View style={authStyles.fieldGroup}>
+                    <Text style={authStyles.label}>3-letter code</Text>
+                    <View style={authStyles.inputWrap}>
+                      <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                      <TextInput
+                        style={authStyles.input}
+                        value={letters}
+                        onChangeText={(v) => {
+                          setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase());
+                          if (createError) setCreateError("");
+                        }}
+                        autoCapitalize="characters"
+                        maxLength={3}
+                        placeholder="ABC"
+                        placeholderTextColor="#bdc1c8"
+                        testID="create-letters"
+                      />
+                    </View>
                   </View>
+
+                  {createError ? (
+                    <View style={authStyles.errorBox}>
+                      <Ionicons name="alert-circle" size={18} color="#B42318" />
+                      <Text style={authStyles.errorText}>{createError}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              </View>
+              ) : (
+                <View style={authStyles.formCard}>
+                  {/* Item description */}
+                  <View style={authStyles.fieldGroup}>
+                    <Text style={authStyles.label}>Description</Text>
+                    <View style={authStyles.inputWrap}>
+                      <Ionicons name="pricetag-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                      <TextInput
+                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "600", fontSize: 15 }]}
+                        value={itemDesc}
+                        onChangeText={setItemDesc}
+                        placeholder="What did they pay for?"
+                        placeholderTextColor="#bdc1c8"
+                        testID="receipt-desc"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Quantity stepper */}
+                  <View style={[authStyles.fieldGroup, { flexDirection: "row", alignItems: "center" }]}>
+                    <Text style={[authStyles.label, { flex: 1, marginBottom: 0 }]}>Quantity</Text>
+                    <View style={adminStyles.qtyRow}>
+                      <TouchableOpacity
+                        onPress={() => setItemQty((q) => Math.max(1, q - 1))}
+                        style={adminStyles.qtyBtn}
+                        testID="qty-minus"
+                      >
+                        <Ionicons name="remove" size={18} color={DARK} />
+                      </TouchableOpacity>
+                      <Text style={adminStyles.qtyVal}>{itemQty}</Text>
+                      <TouchableOpacity
+                        onPress={() => setItemQty((q) => Math.min(999, q + 1))}
+                        style={adminStyles.qtyBtn}
+                        testID="qty-plus"
+                      >
+                        <Ionicons name="add" size={18} color={DARK} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Price tile - opens keypad on tap */}
+                  <Text style={authStyles.label}>Unit price</Text>
+                  <TouchableOpacity
+                    style={adminStyles.priceTile}
+                    onPress={() => setKeypadOpen(true)}
+                    testID="open-price-keypad"
+                    activeOpacity={0.85}
+                  >
+                    <View>
+                      <Text style={adminStyles.priceTileHint}>Tap to enter price</Text>
+                      <Text style={adminStyles.priceTileVal}>{fmtMoney(priceCents)}</Text>
+                    </View>
+                    <Ionicons name="calculator-outline" size={26} color={ORANGE} />
+                  </TouchableOpacity>
+
+                  {/* Discount chips */}
+                  <Text style={[authStyles.label, { marginTop: 18 }]}>Discount</Text>
+                  <View style={adminStyles.chipRow}>
+                    {(["none", "5", "10", "15", "custom"] as const).map((opt) => {
+                      const active = discountChoice === opt;
+                      const label =
+                        opt === "none" ? "None" :
+                        opt === "custom" ? "Custom" :
+                        `-${opt}%`;
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          onPress={() => setDiscountChoice(opt)}
+                          style={[
+                            adminStyles.chip,
+                            active && adminStyles.chipActive,
+                          ]}
+                          testID={`discount-${opt}`}
+                        >
+                          <Text style={[
+                            adminStyles.chipText,
+                            active && adminStyles.chipTextActive,
+                          ]}>{label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {discountChoice === "custom" && (
+                    <View style={[authStyles.inputWrap, { marginTop: 10 }]}>
+                      <Ionicons name="pricetags-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                      <TextInput
+                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "700" }]}
+                        value={customDiscount}
+                        onChangeText={(v) => setCustomDiscount(v.replace(/[^0-9.]/g, "").slice(0, 5))}
+                        keyboardType="decimal-pad"
+                        placeholder="Discount %"
+                        placeholderTextColor="#bdc1c8"
+                        testID="custom-discount"
+                      />
+                      <Text style={{ color: MUTED, fontWeight: "700", marginRight: 4 }}>%</Text>
+                    </View>
+                  )}
+
+                  {/* Payment method chips */}
+                  <Text style={[authStyles.label, { marginTop: 18 }]}>Payment method</Text>
+                  <View style={adminStyles.chipRow}>
+                    {(["Cash", "Card", "EFTPOS", "Bank Transfer"] as const).map((m) => {
+                      const active = paymentMethod === m;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setPaymentMethod(m)}
+                          style={[
+                            adminStyles.chip,
+                            active && adminStyles.chipActive,
+                          ]}
+                          testID={`pay-${m}`}
+                        >
+                          <Text style={[
+                            adminStyles.chipText,
+                            active && adminStyles.chipTextActive,
+                          ]}>{m}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Live totals */}
+                  <View style={adminStyles.totalsBox}>
+                    <View style={adminStyles.totalsRow}>
+                      <Text style={adminStyles.totalsLabel}>Subtotal</Text>
+                      <Text style={adminStyles.totalsVal}>{fmtMoney(subtotalCents())}</Text>
+                    </View>
+                    {effectiveDiscountPercent() > 0 && (
+                      <View style={adminStyles.totalsRow}>
+                        <Text style={adminStyles.totalsLabel}>
+                          Discount ({effectiveDiscountPercent()}%)
+                        </Text>
+                        <Text style={[adminStyles.totalsVal, { color: "#1f9d55" }]}>
+                          -{fmtMoney(discountCents())}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={[adminStyles.totalsRow, { marginTop: 6 }]}>
+                      <Text style={adminStyles.totalsLabelBig}>Total</Text>
+                      <Text style={adminStyles.totalsValBig}>{fmtMoney(totalCents())}</Text>
+                    </View>
+                  </View>
+
+                  {createError ? (
+                    <View style={authStyles.errorBox}>
+                      <Ionicons name="alert-circle" size={18} color="#B42318" />
+                      <Text style={authStyles.errorText}>{createError}</Text>
+                    </View>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[authStyles.primaryBtn, { marginTop: 18 }, creating && { opacity: 0.9 }]}
+                    onPress={create}
+                    disabled={creating}
+                    testID="create-submit"
+                    activeOpacity={0.85}
+                  >
+                    {creating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={authStyles.primaryBtnText}>Create account</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* Price keypad modal */}
+      <Modal
+        visible={keypadOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setKeypadOpen(false)}
+      >
+        <View style={adminStyles.keypadBackdrop}>
+          <View style={adminStyles.keypadCard}>
+            <Text style={adminStyles.keypadHint}>Unit price</Text>
+            <Text style={adminStyles.keypadDisplay}>{fmtMoney(priceCents)}</Text>
+            <View style={adminStyles.keypadGrid}>
+              {["1","2","3","4","5","6","7","8","9","00","0","⌫"].map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  style={adminStyles.keypadKey}
+                  onPress={() => {
+                    if (k === "⌫") {
+                      setPriceCents((p) => Math.floor(p / 10));
+                    } else if (k === "00") {
+                      setPriceCents((p) => Math.min(99999999, p * 100));
+                    } else {
+                      const d = parseInt(k, 10);
+                      setPriceCents((p) => Math.min(99999999, p * 10 + d));
+                    }
+                  }}
+                  testID={`key-${k}`}
+                  activeOpacity={0.6}
+                >
+                  <Text style={adminStyles.keypadKeyText}>{k}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              <TouchableOpacity
+                style={[adminStyles.keypadAction, { backgroundColor: "#F2F4F7" }]}
+                onPress={() => setPriceCents(0)}
+                testID="key-clear"
+              >
+                <Text style={[adminStyles.keypadActionText, { color: DARK }]}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[adminStyles.keypadAction, { backgroundColor: ORANGE }]}
+                onPress={() => setKeypadOpen(false)}
+                testID="key-done"
+              >
+                <Text style={[adminStyles.keypadActionText, { color: "#fff" }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Receipt viewer */}
+      <ReceiptModal
+        account={receiptAccount}
+        onClose={() => setReceiptAccount(null)}
+      />
     </SafeAreaView>
+  );
+}
+
+// ---------- Receipt Modal ----------
+function ReceiptModal({
+  account,
+  onClose,
+}: {
+  account: Account | null;
+  onClose: () => void;
+}) {
+  if (!account) return null;
+  const r = account.receipt;
+  const fmt = (n: number) => {
+    const sign = n < 0 ? "-" : "";
+    const v = Math.abs(n);
+    return `${sign}$${v.toFixed(2)}`;
+  };
+  const subtotal = r ? r.unitPrice * Math.max(1, r.qty) : 0;
+  const discount = r ? subtotal * (r.discountPercent || 0) / 100 : 0;
+  const total = Math.max(0, subtotal - discount);
+  const date = (() => {
+    try {
+      const d = new Date(r?.createdAt || Date.now());
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      let h = d.getHours();
+      const ampm = h >= 12 ? "pm" : "am";
+      h = h % 12 || 12;
+      return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(h).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${ampm}`;
+    } catch {
+      return "—";
+    }
+  })();
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={receiptStyles.backdrop}>
+        <View style={receiptStyles.sheet}>
+          <View style={receiptStyles.handle} />
+          <ScrollView
+            contentContainerStyle={{ padding: 22, paddingTop: 4, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={receiptStyles.logoRow}>
+              <View style={receiptStyles.logoMark}>
+                <MaterialCommunityIcons name="card-account-details" size={28} color="#fff" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={receiptStyles.bizName}>DIGI ID</Text>
+                <Text style={receiptStyles.bizSub}>Probationary licence wallet · Victoria</Text>
+              </View>
+            </View>
+
+            <Text style={receiptStyles.meta}>Receipt #: {r?.number || "—"}</Text>
+            <Text style={receiptStyles.meta}>Date: {date}</Text>
+            <Text style={receiptStyles.meta}>Customer: {account.name}</Text>
+
+            <View style={receiptStyles.hr} />
+
+            <View style={receiptStyles.headerRow}>
+              <Text style={[receiptStyles.col, receiptStyles.colDesc]}>Description</Text>
+              <Text style={[receiptStyles.col, receiptStyles.colQty]}>Qty</Text>
+              <Text style={[receiptStyles.col, receiptStyles.colPrice]}>U/Price</Text>
+              <Text style={[receiptStyles.col, receiptStyles.colTotal]}>Total</Text>
+            </View>
+
+            {r ? (
+              <View style={receiptStyles.row}>
+                <Text style={[receiptStyles.col, receiptStyles.colDesc]} numberOfLines={2}>
+                  {r.description || "—"}
+                </Text>
+                <Text style={[receiptStyles.col, receiptStyles.colQty]}>{r.qty}</Text>
+                <Text style={[receiptStyles.col, receiptStyles.colPrice]}>{fmt(r.unitPrice)}</Text>
+                <Text style={[receiptStyles.col, receiptStyles.colTotal]}>{fmt(r.unitPrice * r.qty)}</Text>
+              </View>
+            ) : (
+              <Text style={[receiptStyles.meta, { textAlign: "center", marginTop: 20 }]}>
+                No receipt was recorded for this account.
+              </Text>
+            )}
+
+            {r && (
+              <>
+                <View style={receiptStyles.hr} />
+                <View style={receiptStyles.totalsRow}>
+                  <Text style={receiptStyles.totalsLabel}>Sub Total:</Text>
+                  <Text style={receiptStyles.totalsVal}>{fmt(subtotal)}</Text>
+                </View>
+                {r.discountPercent > 0 && (
+                  <View style={receiptStyles.totalsRow}>
+                    <Text style={receiptStyles.totalsLabel}>
+                      Discount ({r.discountPercent}%):
+                    </Text>
+                    <Text style={[receiptStyles.totalsVal, { color: "#1f9d55" }]}>
+                      -{fmt(discount)}
+                    </Text>
+                  </View>
+                )}
+                <View style={receiptStyles.totalsRow}>
+                  <Text style={[receiptStyles.totalsLabel, { fontWeight: "900" }]}>Total:</Text>
+                  <Text style={[receiptStyles.totalsVal, { fontWeight: "900", fontSize: 18 }]}>
+                    {fmt(total)}
+                  </Text>
+                </View>
+                <View style={[receiptStyles.totalsRow, { marginTop: 6 }]}>
+                  <Text style={receiptStyles.totalsLabel}>Paid via:</Text>
+                  <Text style={receiptStyles.totalsVal}>{r.paymentMethod}</Text>
+                </View>
+
+                <View style={receiptStyles.hr} />
+                <Text style={receiptStyles.thanks}>Thank you for shopping with us!</Text>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={receiptStyles.doneBtn}
+              onPress={onClose}
+              testID="receipt-done"
+              activeOpacity={0.85}
+            >
+              <Text style={receiptStyles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -2557,6 +3067,274 @@ const adminStyles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 13,
   },
+
+  // Quantity stepper
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F2F4F7",
+    borderRadius: 999,
+    padding: 4,
+    gap: 4,
+  },
+  qtyBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qtyVal: {
+    minWidth: 32,
+    textAlign: "center",
+    fontWeight: "800",
+    color: DARK,
+    fontSize: 15,
+  },
+
+  // Price tile
+  priceTile: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF7F3",
+    borderWidth: 1.5,
+    borderColor: "#FFD9C8",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 4,
+  },
+  priceTileHint: {
+    color: ORANGE,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  priceTileVal: {
+    color: DARK,
+    fontSize: 30,
+    fontWeight: "900",
+    marginTop: 2,
+    letterSpacing: -0.5,
+  },
+
+  // Chips (discount / payment)
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  chipActive: {
+    backgroundColor: DARK,
+    borderColor: DARK,
+  },
+  chipText: { color: DARK, fontWeight: "700", fontSize: 13 },
+  chipTextActive: { color: "#fff" },
+
+  // Totals box (live preview on payment step)
+  totalsBox: {
+    marginTop: 18,
+    backgroundColor: "#F7F8FA",
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+    borderRadius: 14,
+    padding: 14,
+  },
+  totalsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  totalsLabel: { color: MUTED, fontWeight: "700", fontSize: 13 },
+  totalsVal: { color: DARK, fontWeight: "700", fontSize: 14 },
+  totalsLabelBig: { color: DARK, fontWeight: "800", fontSize: 15 },
+  totalsValBig: { color: DARK, fontWeight: "900", fontSize: 18 },
+
+  // Keypad
+  keypadBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,34,0.55)",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  keypadCard: {
+    width: "100%",
+    maxWidth: 460,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    paddingBottom: 28,
+  },
+  keypadHint: {
+    color: MUTED,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  keypadDisplay: {
+    color: DARK,
+    fontSize: 44,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  keypadGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  keypadKey: {
+    width: "31.5%",
+    aspectRatio: 1.7,
+    backgroundColor: "#F2F4F7",
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keypadKeyText: {
+    color: DARK,
+    fontWeight: "800",
+    fontSize: 22,
+  },
+  keypadAction: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  keypadActionText: { fontWeight: "800", fontSize: 15 },
+});
+
+// Receipt styles (used by ReceiptModal — defined here next to adminStyles)
+const receiptStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,34,0.55)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    maxHeight: "92%",
+  },
+  handle: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  logoMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#0F1722",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bizName: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F1722",
+    letterSpacing: 1,
+  },
+  bizSub: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  meta: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 13,
+    color: "#0F1722",
+    marginBottom: 4,
+  },
+  hr: {
+    height: 1,
+    backgroundColor: "#0F1722",
+    marginVertical: 14,
+  },
+  headerRow: {
+    flexDirection: "row",
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: "row",
+    paddingVertical: 6,
+  },
+  col: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 13,
+    color: "#0F1722",
+    fontWeight: "700",
+  },
+  colDesc: { flex: 3 },
+  colQty: { flex: 0.6, textAlign: "center" },
+  colPrice: { flex: 1.2, textAlign: "right" },
+  colTotal: { flex: 1.2, textAlign: "right" },
+  totalsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    paddingVertical: 3,
+    gap: 12,
+  },
+  totalsLabel: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 14,
+    color: "#0F1722",
+    fontWeight: "700",
+  },
+  totalsVal: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 14,
+    color: "#0F1722",
+    fontWeight: "700",
+    minWidth: 90,
+    textAlign: "right",
+  },
+  thanks: {
+    textAlign: "center",
+    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  doneBtn: {
+    marginTop: 24,
+    backgroundColor: "#0F1722",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  doneBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
 });
 
 const styles = StyleSheet.create({

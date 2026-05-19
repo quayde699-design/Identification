@@ -9,6 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
+from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -30,6 +31,10 @@ def _gen_card() -> str:
     return "P" + "".join(str(random.randint(0, 9)) for _ in range(7))
 
 
+def _gen_receipt_no() -> str:
+    return "#" + "".join(str(random.randint(0, 9)) for _ in range(7))
+
+
 # ---------- Models ----------
 class Licence(BaseModel):
     permitNumber: str = ""
@@ -46,6 +51,16 @@ class Licence(BaseModel):
     photoUri: str = ""
 
 
+class Receipt(BaseModel):
+    number: str = ""
+    createdAt: str = ""
+    description: str = "Probationary Driver Licence"
+    qty: int = 1
+    unitPrice: float = 0.0
+    discountPercent: float = 0.0
+    paymentMethod: str = "Cash"
+
+
 class Account(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -53,6 +68,7 @@ class Account(BaseModel):
     letters: str
     locked: bool = False
     licence: Licence = Field(default_factory=Licence)
+    receipt: Optional[Receipt] = None
 
 
 class AccountCreate(BaseModel):
@@ -60,6 +76,7 @@ class AccountCreate(BaseModel):
     digits: str
     letters: str
     licence: Optional[Licence] = None
+    receipt: Optional[Receipt] = None
 
 
 class AccountUpdate(BaseModel):
@@ -68,6 +85,7 @@ class AccountUpdate(BaseModel):
     letters: Optional[str] = None
     locked: Optional[bool] = None
     licence: Optional[Licence] = None
+    receipt: Optional[Receipt] = None
 
 
 # ---------- Routes ----------
@@ -95,12 +113,19 @@ async def create_account(payload: AccountCreate):
         licence.permitNumber = _gen_permit()
     if not licence.cardNumber:
         licence.cardNumber = _gen_card()
+    receipt = payload.receipt
+    if receipt is not None:
+        if not receipt.number:
+            receipt.number = _gen_receipt_no()
+        if not receipt.createdAt:
+            receipt.createdAt = datetime.now(timezone.utc).isoformat()
     acc = Account(
         name=payload.name,
         digits=payload.digits,
         letters=payload.letters.upper(),
         locked=False,
         licence=licence,
+        receipt=receipt,
     )
     await db.accounts.insert_one(acc.model_dump())
     return acc
@@ -136,9 +161,6 @@ async def delete_account(account_id: str):
 
 
 # ---------- Support requests ----------
-from datetime import datetime, timezone
-
-
 class SupportRequest(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     reason: str
