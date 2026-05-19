@@ -393,15 +393,24 @@ function LoginScreen({
 
             <TouchableOpacity
               style={authStyles.snapBtn}
-              onPress={async () => {
+              onPress={() => {
                 const username = "quayde_burnham";
                 const appUrl = `snapchat://add/${username}`;
                 const webUrl = `https://www.snapchat.com/add/${username}`;
-                try {
-                  const can = await Linking.canOpenURL(appUrl);
-                  await Linking.openURL(can ? appUrl : webUrl);
-                } catch {
-                  Linking.openURL(webUrl).catch(() => {});
+                if (Platform.OS === "web") {
+                  // On web/PWA we MUST stay synchronous in the user gesture
+                  // or Safari will block the navigation. Open the web URL
+                  // (Snapchat web auto-deeplinks to the app on iOS/Android).
+                  try {
+                    const w = window.open(webUrl, "_blank");
+                    if (!w) window.location.href = webUrl;
+                  } catch {
+                    window.location.href = webUrl;
+                  }
+                } else {
+                  Linking.openURL(appUrl).catch(() =>
+                    Linking.openURL(webUrl).catch(() => {})
+                  );
                 }
                 setSupportOpen(false);
               }}
@@ -422,7 +431,14 @@ function LoginScreen({
               style={authStyles.emailBtn}
               onPress={() => {
                 const email = "quaydeburnham67@gmail.com";
-                Linking.openURL(`mailto:${email}`).catch(() => {});
+                const url = `mailto:${email}`;
+                if (Platform.OS === "web") {
+                  // Synchronous navigation keeps the user-gesture chain alive
+                  // so iOS Safari actually triggers the mail composer.
+                  window.location.href = url;
+                } else {
+                  Linking.openURL(url).catch(() => {});
+                }
                 setSupportOpen(false);
               }}
               testID="support-email"
