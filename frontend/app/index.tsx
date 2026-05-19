@@ -925,7 +925,7 @@ function LicenceScreen({
         >
           {/* Header strip */}
           <Image
-            source={require("../assets/header_banner.jpg")}
+            source={require("../assets/header_banner.png")}
             style={styles.headerBanner}
             resizeMode="contain"
           />
