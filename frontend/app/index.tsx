@@ -827,15 +827,15 @@ function LicenceScreen({
               )}
               <View pointerEvents="none" style={styles.watermarkOverlay}>
                 {[
-                  { top: -8, left: -8 },
-                  { top: 75, right: -8 },
-                  { bottom: -8, left: -8 },
+                  { top: -15, left: -15 },
+                  { top: 80, right: -20 },
+                  { bottom: -15, left: -10 },
                 ].map((pos, i) => (
                   <Image
                     key={i}
                     source={require("../assets/watermark.png")}
                     style={[
-                      { position: "absolute", width: 150, height: 150, opacity: 0.35 },
+                      { position: "absolute", width: 120, height: 120, opacity: 0.35 },
                       pos,
                     ]}
                     resizeMode="contain"
