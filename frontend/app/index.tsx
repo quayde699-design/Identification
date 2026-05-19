@@ -334,6 +334,7 @@ function AdminLoginScreen({
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   return (
     <SafeAreaView style={authStyles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -377,18 +378,28 @@ function AdminLoginScreen({
           />
 
           <TouchableOpacity
-            style={authStyles.primaryBtn}
+            style={[authStyles.primaryBtn, loading && { opacity: 0.85 }]}
+            disabled={loading}
             onPress={() => {
+              if (loading) return;
               setError("");
               if (digits === ADMIN_DIGITS && letters.toUpperCase() === ADMIN_LETTERS) {
-                onSuccess();
+                setLoading(true);
+                setTimeout(() => {
+                  onSuccess();
+                  setLoading(false);
+                }, 400);
               } else {
                 setError("Wrong Digit or Letter");
               }
             }}
             testID="admin-submit"
           >
-            <Text style={authStyles.primaryBtnText}>Enter admin</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={authStyles.primaryBtnText}>Enter admin</Text>
+            )}
           </TouchableOpacity>
           {error ? (
             <Text style={authStyles.errorText} testID="admin-error">{error}</Text>
@@ -414,6 +425,9 @@ function AdminScreen({
   const [name, setName] = useState("");
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [lockingId, setLockingId] = useState<string | null>(null);
 
   const randomize = () => {
     setDigits(randomDigits(6));
@@ -421,6 +435,7 @@ function AdminScreen({
   };
 
   const create = async () => {
+    if (creating) return;
     if (!name.trim()) {
       Alert.alert("Missing", "Enter a name for the account.");
       return;
@@ -429,6 +444,7 @@ function AdminScreen({
       Alert.alert("Missing", "Need a 6-digit code and 3-letter code.");
       return;
     }
+    setCreating(true);
     try {
       const res = await fetch(`${API_BASE}/accounts`, {
         method: "POST",
@@ -468,12 +484,16 @@ function AdminScreen({
       setCreateOpen(false);
     } catch (e) {
       Alert.alert("Network error", "Could not reach server.");
+    } finally {
+      setCreating(false);
     }
   };
 
   const toggleLock = async (id: string) => {
+    if (lockingId) return;
     const a = accounts.find((x) => x.id === id);
     if (!a) return;
+    setLockingId(id);
     try {
       await fetch(`${API_BASE}/accounts/${id}`, {
         method: "PUT",
@@ -482,17 +502,20 @@ function AdminScreen({
       });
       await onRefresh();
     } catch {}
+    setLockingId(null);
   };
 
   const remove = (id: string) => {
     setDeleteId(id);
   };
   const confirmDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || deleting) return;
+    setDeleting(true);
     try {
       await fetch(`${API_BASE}/accounts/${deleteId}`, { method: "DELETE" });
       await onRefresh();
     } catch {}
+    setDeleting(false);
     setDeleteId(null);
   };
 
@@ -535,13 +558,18 @@ function AdminScreen({
             <TouchableOpacity
               onPress={() => toggleLock(a.id)}
               style={adminStyles.iconBtn}
+              disabled={lockingId === a.id}
               testID={`lock-${a.id}`}
             >
-              <Ionicons
-                name={a.locked ? "lock-closed" : "lock-open"}
-                size={22}
-                color={a.locked ? ORANGE : MUTED}
-              />
+              {lockingId === a.id ? (
+                <ActivityIndicator size="small" color={ORANGE} />
+              ) : (
+                <Ionicons
+                  name={a.locked ? "lock-closed" : "lock-open"}
+                  size={22}
+                  color={a.locked ? ORANGE : MUTED}
+                />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => remove(a.id)}
@@ -570,11 +598,16 @@ function AdminScreen({
                 <Text style={[adminStyles.confirmBtnText, { color: DARK }]}>No</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[adminStyles.confirmBtn, { backgroundColor: "#c0392b" }]}
+                style={[adminStyles.confirmBtn, { backgroundColor: "#c0392b" }, deleting && { opacity: 0.85 }]}
                 onPress={confirmDelete}
+                disabled={deleting}
                 testID="delete-confirm"
               >
-                <Text style={[adminStyles.confirmBtnText, { color: "#fff" }]}>Confirm</Text>
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[adminStyles.confirmBtnText, { color: "#fff" }]}>Confirm</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -590,8 +623,12 @@ function AdminScreen({
                 <Text style={{ fontSize: 16, color: MUTED }}>Cancel</Text>
               </TouchableOpacity>
               <Text style={authStyles.topTitle}>New account</Text>
-              <TouchableOpacity onPress={create} style={authStyles.backBtn} testID="create-save">
-                <Text style={{ fontSize: 16, color: ORANGE, fontWeight: "700" }}>Save</Text>
+              <TouchableOpacity onPress={create} style={authStyles.backBtn} disabled={creating} testID="create-save">
+                {creating ? (
+                  <ActivityIndicator size="small" color={ORANGE} />
+                ) : (
+                  <Text style={{ fontSize: 16, color: ORANGE, fontWeight: "700" }}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -662,6 +699,9 @@ function LicenceScreen({
   const [draft, setDraft] = useState<Licence>(account.licence);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
   const [datePickerField, setDatePickerField] = useState<null | "dob" | "expiry" | "issueDate">(null);
+  const [saving, setSaving] = useState(false);
+  const [dateSaving, setDateSaving] = useState(false);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
 
   const parseDate = (s: string): Date => {
     const d = new Date(s);
@@ -684,28 +724,40 @@ function LicenceScreen({
     setEditVisible(true);
   };
   const saveEdit = useCallback(async () => {
-    await onUpdateLicence(draft);
-    setRefreshedAt(new Date());
-    setEditVisible(false);
-  }, [draft, onUpdateLicence]);
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onUpdateLicence(draft);
+      setRefreshedAt(new Date());
+      setEditVisible(false);
+    } finally {
+      setSaving(false);
+    }
+  }, [draft, onUpdateLicence, saving]);
 
   const pickPhoto = async () => {
+    if (pickingPhoto) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert("Permission needed", "Please allow photo access to change your picture.");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.7,
-      base64: true,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      const a = result.assets[0];
-      const uri = a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
-      setDraft({ ...draft, photoUri: uri });
+    setPickingPhoto(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.7,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const a = result.assets[0];
+        const uri = a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
+        setDraft({ ...draft, photoUri: uri });
+      }
+    } finally {
+      setPickingPhoto(false);
     }
   };
 
@@ -942,8 +994,12 @@ function LicenceScreen({
                 <Text style={styles.modalCancel}>Cancel</Text>
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Edit licence</Text>
-              <TouchableOpacity onPress={saveEdit} testID="save-edit">
-                <Text style={styles.modalSave}>Save</Text>
+              <TouchableOpacity onPress={saveEdit} disabled={saving} testID="save-edit">
+                {saving ? (
+                  <ActivityIndicator size="small" color={ORANGE} />
+                ) : (
+                  <Text style={styles.modalSave}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
@@ -960,10 +1016,15 @@ function LicenceScreen({
                 )}
                 <TouchableOpacity
                   onPress={pickPhoto}
-                  style={{ marginTop: 10, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999 }}
+                  disabled={pickingPhoto}
+                  style={{ marginTop: 10, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, minHeight: 40, justifyContent: "center", opacity: pickingPhoto ? 0.85 : 1 }}
                   testID="pick-photo"
                 >
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Change profile picture</Text>
+                  {pickingPhoto ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ color: "#fff", fontWeight: "700" }}>Change profile picture</Text>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -1037,15 +1098,26 @@ function LicenceScreen({
               />
             )}
             <TouchableOpacity
-              style={styles.dateDoneBtn}
+              style={[styles.dateDoneBtn, dateSaving && { opacity: 0.85 }]}
+              disabled={dateSaving}
               onPress={async () => {
-                await onUpdateLicence(draft);
-                setRefreshedAt(new Date());
-                setDatePickerField(null);
+                if (dateSaving) return;
+                setDateSaving(true);
+                try {
+                  await onUpdateLicence(draft);
+                  setRefreshedAt(new Date());
+                  setDatePickerField(null);
+                } finally {
+                  setDateSaving(false);
+                }
               }}
               testID="date-done"
             >
-              <Text style={styles.dateDoneText}>Done</Text>
+              {dateSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.dateDoneText}>Done</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
