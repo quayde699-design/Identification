@@ -14,6 +14,9 @@ import {
   Image,
   ActivityIndicator,
   Dimensions,
+  Linking,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -233,6 +236,8 @@ function LoginScreen({
   const [loading, setLoading] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const snapScale = React.useRef(new Animated.Value(1)).current;
+  const emailScale = React.useRef(new Animated.Value(1)).current;
 
   const tryLogin = async () => {
     if (loading) return;
@@ -390,68 +395,100 @@ function LoginScreen({
               Reach out to Quayde Burnham via your preferred channel.
             </Text>
 
-            <TouchableOpacity
-              style={authStyles.snapBtn}
-              onPress={() => {
-                const username = "quayde_burnham";
-                const appUrl = `snapchat://add/${username}`;
-                const webUrl = `https://www.snapchat.com/add/${username}`;
-                if (Platform.OS === "web") {
-                  // On web/PWA we MUST stay synchronous in the user gesture
-                  // or Safari will block the navigation. Open the web URL
-                  // (Snapchat web auto-deeplinks to the app on iOS/Android).
-                  try {
-                    const w = window.open(webUrl, "_blank");
-                    if (!w) window.location.href = webUrl;
-                  } catch {
-                    window.location.href = webUrl;
+            <Animated.View style={{ transform: [{ scale: snapScale }] }}>
+              <TouchableOpacity
+                style={authStyles.snapBtn}
+                onPressIn={() => {
+                  Animated.timing(snapScale, {
+                    toValue: 0.92,
+                    duration: 90,
+                    easing: Easing.out(Easing.quad),
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPressOut={() => {
+                  Animated.spring(snapScale, {
+                    toValue: 1,
+                    friction: 4,
+                    tension: 160,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPress={() => {
+                  const username = "quayde_burnham";
+                  const appUrl = `snapchat://add/${username}`;
+                  const webUrl = `https://www.snapchat.com/add/${username}`;
+                  if (Platform.OS === "web") {
+                    // Synchronous navigation keeps the user-gesture chain alive
+                    try {
+                      const w = window.open(webUrl, "_blank");
+                      if (!w) window.location.href = webUrl;
+                    } catch {
+                      window.location.href = webUrl;
+                    }
+                  } else {
+                    Linking.openURL(appUrl).catch(() =>
+                      Linking.openURL(webUrl).catch(() => {})
+                    );
                   }
-                } else {
-                  Linking.openURL(appUrl).catch(() =>
-                    Linking.openURL(webUrl).catch(() => {})
-                  );
-                }
-                setSupportOpen(false);
-              }}
-              testID="support-snapchat"
-              activeOpacity={0.85}
-            >
-              <View style={authStyles.snapLogo}>
-                <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={authStyles.snapBtnLabel}>Snapchat</Text>
-                <Text style={authStyles.snapBtnHandle}>quayde_burnham</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
-            </TouchableOpacity>
+                  setTimeout(() => setSupportOpen(false), 220);
+                }}
+                testID="support-snapchat"
+                activeOpacity={0.9}
+              >
+                <View style={authStyles.snapLogo}>
+                  <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={authStyles.snapBtnLabel}>Snapchat</Text>
+                  <Text style={authStyles.snapBtnHandle}>quayde_burnham</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+              </TouchableOpacity>
+            </Animated.View>
 
-            <TouchableOpacity
-              style={authStyles.emailBtn}
-              onPress={() => {
-                const email = "quaydeburnham67@gmail.com";
-                const url = `mailto:${email}`;
-                if (Platform.OS === "web") {
-                  // Synchronous navigation keeps the user-gesture chain alive
-                  // so iOS Safari actually triggers the mail composer.
-                  window.location.href = url;
-                } else {
-                  Linking.openURL(url).catch(() => {});
-                }
-                setSupportOpen(false);
-              }}
-              testID="support-email"
-              activeOpacity={0.85}
-            >
-              <View style={authStyles.emailLogo}>
-                <Ionicons name="mail" size={22} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={authStyles.emailBtnLabel}>Email</Text>
-                <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: emailScale }] }}>
+              <TouchableOpacity
+                style={authStyles.emailBtn}
+                onPressIn={() => {
+                  Animated.timing(emailScale, {
+                    toValue: 0.92,
+                    duration: 90,
+                    easing: Easing.out(Easing.quad),
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPressOut={() => {
+                  Animated.spring(emailScale, {
+                    toValue: 1,
+                    friction: 4,
+                    tension: 160,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+                onPress={() => {
+                  const email = "quaydeburnham67@gmail.com";
+                  const url = `mailto:${email}`;
+                  if (Platform.OS === "web") {
+                    window.location.href = url;
+                  } else {
+                    Linking.openURL(url).catch(() => {});
+                  }
+                  setTimeout(() => setSupportOpen(false), 220);
+                }}
+                testID="support-email"
+                activeOpacity={0.9}
+              >
+                <View style={authStyles.emailLogo}>
+                  <Ionicons name="mail" size={22} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={authStyles.emailBtnLabel}>Email</Text>
+                  <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+              </TouchableOpacity>
+            </Animated.View>
 
             <TouchableOpacity
               style={authStyles.supportClose}
