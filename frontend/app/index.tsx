@@ -235,6 +235,7 @@ function LoginScreen({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [supportStep, setSupportStep] = useState<"reason" | "channel">("reason");
   const [supportReason, setSupportReason] = useState("");
   const [supportError, setSupportError] = useState("");
   const [supportSubmitting, setSupportSubmitting] = useState<null | "snapchat" | "email">(null);
@@ -244,14 +245,33 @@ function LoginScreen({
 
   const closeSupport = () => {
     setSupportOpen(false);
+    setSupportStep("reason");
     setSupportError("");
     setSupportReason("");
     setSupportSubmitting(null);
   };
 
+  const openSupport = () => {
+    setSupportStep("reason");
+    setSupportError("");
+    setSupportReason("");
+    setSupportOpen(true);
+  };
+
+  const goToChannelStep = () => {
+    const reason = supportReason.trim();
+    if (reason.length < 3) {
+      setSupportError("Please type a short reason first (at least 3 characters).");
+      return;
+    }
+    setSupportError("");
+    setSupportStep("channel");
+  };
+
   const submitSupport = async (channel: "snapchat" | "email") => {
     const reason = supportReason.trim();
     if (reason.length < 3) {
+      setSupportStep("reason");
       setSupportError("Please type a short reason first (at least 3 characters).");
       return;
     }
@@ -420,7 +440,7 @@ function LoginScreen({
 
             <TouchableOpacity
               style={authStyles.supportBtn}
-              onPress={() => setSupportOpen(true)}
+              onPress={openSupport}
               testID="contact-support-btn"
               activeOpacity={0.6}
             >
@@ -459,130 +479,172 @@ function LoginScreen({
           >
             <TouchableOpacity activeOpacity={1} style={authStyles.supportCard}>
               <View style={authStyles.supportIconBubble}>
-                <Ionicons name="help-buoy" size={28} color={ORANGE} />
+                <Ionicons
+                  name={supportStep === "reason" ? "help-buoy" : "send"}
+                  size={28}
+                  color={ORANGE}
+                />
               </View>
-              <Text style={authStyles.supportTitle}>Contact support</Text>
+              <Text style={authStyles.supportTitle}>
+                {supportStep === "reason" ? "Contact support" : "Pick a channel"}
+              </Text>
               <Text style={authStyles.supportBody}>
-                Tell us what's going on, then pick a channel — Quayde will be notified.
+                {supportStep === "reason"
+                  ? "Tell us what's going on, then tap Next to pick how you'd like to reach Quayde."
+                  : "Quayde will be notified either way — your message is already on record."}
               </Text>
 
-              <Text style={authStyles.supportFieldLabel}>Reason</Text>
-              <TextInput
-                style={authStyles.supportInput}
-                value={supportReason}
-                onChangeText={(v) => {
-                  setSupportReason(v);
-                  if (supportError) setSupportError("");
-                }}
-                placeholder="e.g. Can't sign in with my code, my licence photo won't save…"
-                placeholderTextColor="#9aa1ad"
-                multiline
-                maxLength={1000}
-                textAlignVertical="top"
-                testID="support-reason"
-                editable={!supportSubmitting}
-              />
-              <Text style={authStyles.supportCounter}>{supportReason.length}/1000</Text>
+              {supportStep === "reason" ? (
+                <>
+                  <Text style={authStyles.supportFieldLabel}>Reason</Text>
+                  <TextInput
+                    style={authStyles.supportInput}
+                    value={supportReason}
+                    onChangeText={(v) => {
+                      setSupportReason(v);
+                      if (supportError) setSupportError("");
+                    }}
+                    placeholder="e.g. Can't sign in with my code, my licence photo won't save…"
+                    placeholderTextColor="#9aa1ad"
+                    multiline
+                    maxLength={1000}
+                    textAlignVertical="top"
+                    testID="support-reason"
+                    autoFocus
+                  />
+                  <Text style={authStyles.supportCounter}>{supportReason.length}/1000</Text>
 
-              {supportError ? (
-                <View style={authStyles.supportErrorBox} testID="support-error-box">
-                  <Ionicons name="alert-circle" size={16} color="#B42318" />
-                  <Text style={authStyles.supportErrorText}>{supportError}</Text>
-                </View>
-              ) : null}
+                  {supportError ? (
+                    <View style={authStyles.supportErrorBox} testID="support-error-box">
+                      <Ionicons name="alert-circle" size={16} color="#B42318" />
+                      <Text style={authStyles.supportErrorText}>{supportError}</Text>
+                    </View>
+                  ) : null}
 
-              <Animated.View style={{ transform: [{ scale: snapScale }] }}>
-                <TouchableOpacity
-                  style={[
-                    authStyles.snapBtn,
-                    supportSubmitting && supportSubmitting !== "snapchat" && { opacity: 0.5 },
-                  ]}
-                  disabled={!!supportSubmitting}
-                  onPressIn={() => {
-                    Animated.timing(snapScale, {
-                      toValue: 0.92,
-                      duration: 90,
-                      easing: Easing.out(Easing.quad),
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                  onPressOut={() => {
-                    Animated.spring(snapScale, {
-                      toValue: 1,
-                      friction: 4,
-                      tension: 160,
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                  onPress={() => submitSupport("snapchat")}
-                  testID="support-snapchat"
-                  activeOpacity={0.9}
-                >
-                  <View style={authStyles.snapLogo}>
-                    <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={authStyles.snapBtnLabel}>Send via Snapchat</Text>
-                    <Text style={authStyles.snapBtnHandle}>quayde_burnham · reason copied to clipboard</Text>
-                  </View>
-                  {supportSubmitting === "snapchat" ? (
-                    <ActivityIndicator size="small" color={DARK} />
-                  ) : (
-                    <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
+                  <TouchableOpacity
+                    style={authStyles.supportNextBtn}
+                    onPress={goToChannelStep}
+                    testID="support-next"
+                    activeOpacity={0.85}
+                  >
+                    <Text style={authStyles.supportNextBtnText}>Next</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
+                  </TouchableOpacity>
 
-              <Animated.View style={{ transform: [{ scale: emailScale }] }}>
-                <TouchableOpacity
-                  style={[
-                    authStyles.emailBtn,
-                    supportSubmitting && supportSubmitting !== "email" && { opacity: 0.5 },
-                  ]}
-                  disabled={!!supportSubmitting}
-                  onPressIn={() => {
-                    Animated.timing(emailScale, {
-                      toValue: 0.92,
-                      duration: 90,
-                      easing: Easing.out(Easing.quad),
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                  onPressOut={() => {
-                    Animated.spring(emailScale, {
-                      toValue: 1,
-                      friction: 4,
-                      tension: 160,
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                  onPress={() => submitSupport("email")}
-                  testID="support-email"
-                  activeOpacity={0.9}
-                >
-                  <View style={authStyles.emailLogo}>
-                    <Ionicons name="mail" size={22} color="#fff" />
+                  <TouchableOpacity
+                    style={authStyles.supportClose}
+                    onPress={closeSupport}
+                    testID="support-close"
+                  >
+                    <Text style={authStyles.supportCloseText}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <View style={authStyles.supportReasonPreview}>
+                    <Text style={authStyles.supportReasonPreviewLabel}>Your message</Text>
+                    <Text style={authStyles.supportReasonPreviewText} numberOfLines={4}>
+                      {supportReason.trim()}
+                    </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={authStyles.emailBtnLabel}>Send via Email</Text>
-                    <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
-                  </View>
-                  {supportSubmitting === "email" ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
 
-              <TouchableOpacity
-                style={authStyles.supportClose}
-                onPress={closeSupport}
-                testID="support-close"
-                disabled={!!supportSubmitting}
-              >
-                <Text style={authStyles.supportCloseText}>Close</Text>
-              </TouchableOpacity>
+                  <Animated.View style={{ transform: [{ scale: snapScale }] }}>
+                    <TouchableOpacity
+                      style={[
+                        authStyles.snapBtn,
+                        supportSubmitting && supportSubmitting !== "snapchat" && { opacity: 0.5 },
+                      ]}
+                      disabled={!!supportSubmitting}
+                      onPressIn={() => {
+                        Animated.timing(snapScale, {
+                          toValue: 0.92,
+                          duration: 90,
+                          easing: Easing.out(Easing.quad),
+                          useNativeDriver: true,
+                        }).start();
+                      }}
+                      onPressOut={() => {
+                        Animated.spring(snapScale, {
+                          toValue: 1,
+                          friction: 4,
+                          tension: 160,
+                          useNativeDriver: true,
+                        }).start();
+                      }}
+                      onPress={() => submitSupport("snapchat")}
+                      testID="support-snapchat"
+                      activeOpacity={0.9}
+                    >
+                      <View style={authStyles.snapLogo}>
+                        <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={authStyles.snapBtnLabel}>Send via Snapchat</Text>
+                        <Text style={authStyles.snapBtnHandle}>quayde_burnham · reason copied to clipboard</Text>
+                      </View>
+                      {supportSubmitting === "snapchat" ? (
+                        <ActivityIndicator size="small" color={DARK} />
+                      ) : (
+                        <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+
+                  <Animated.View style={{ transform: [{ scale: emailScale }] }}>
+                    <TouchableOpacity
+                      style={[
+                        authStyles.emailBtn,
+                        supportSubmitting && supportSubmitting !== "email" && { opacity: 0.5 },
+                      ]}
+                      disabled={!!supportSubmitting}
+                      onPressIn={() => {
+                        Animated.timing(emailScale, {
+                          toValue: 0.92,
+                          duration: 90,
+                          easing: Easing.out(Easing.quad),
+                          useNativeDriver: true,
+                        }).start();
+                      }}
+                      onPressOut={() => {
+                        Animated.spring(emailScale, {
+                          toValue: 1,
+                          friction: 4,
+                          tension: 160,
+                          useNativeDriver: true,
+                        }).start();
+                      }}
+                      onPress={() => submitSupport("email")}
+                      testID="support-email"
+                      activeOpacity={0.9}
+                    >
+                      <View style={authStyles.emailLogo}>
+                        <Ionicons name="mail" size={22} color="#fff" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={authStyles.emailBtnLabel}>Send via Email</Text>
+                        <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
+                      </View>
+                      {supportSubmitting === "email" ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+
+                  <TouchableOpacity
+                    style={authStyles.supportClose}
+                    onPress={() => {
+                      setSupportStep("reason");
+                      setSupportError("");
+                    }}
+                    testID="support-back"
+                    disabled={!!supportSubmitting}
+                  >
+                    <Text style={authStyles.supportCloseText}>← Back</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </TouchableOpacity>
           </KeyboardAvoidingView>
         </TouchableOpacity>
@@ -2174,6 +2236,44 @@ const authStyles = StyleSheet.create({
     marginBottom: 12,
   },
   supportErrorText: { color: "#B42318", fontSize: 13, fontWeight: "700", flex: 1 },
+  supportNextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: ORANGE,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 4,
+    shadowColor: ORANGE,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  supportNextBtnText: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
+  supportReasonPreview: {
+    backgroundColor: "#F7F8FA",
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  supportReasonPreviewLabel: {
+    color: MUTED,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  supportReasonPreviewText: {
+    color: DARK,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
   snapBtn: {
     flexDirection: "row",
     alignItems: "center",
