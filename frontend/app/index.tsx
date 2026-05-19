@@ -268,10 +268,10 @@ function LoginScreen({
   };
 
   return (
-    <SafeAreaView style={authStyles.root}>
+    <SafeAreaView style={authStyles.root} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <TouchableOpacity
-        style={[authStyles.adminBtn, { top: insets.top + 8 }]}
+        style={[authStyles.adminBtn, { top: 8 }]}
         onPress={onAdmin}
         testID="admin-button"
       >
@@ -288,7 +288,7 @@ function LoginScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[authStyles.hero, { marginTop: insets.top + 12 }]}>
+          <View style={[authStyles.hero, { marginTop: 0 }]}>
             <View style={authStyles.heroBadge}>
               <MaterialCommunityIcons name="card-account-details" size={42} color={ORANGE} />
             </View>
@@ -376,7 +376,7 @@ function AdminLoginScreen({
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView style={authStyles.root}>
+    <SafeAreaView style={authStyles.root} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={authStyles.topRow}>
         <TouchableOpacity onPress={onBack} style={authStyles.backBtn} testID="admin-back">
@@ -593,7 +593,7 @@ function AdminScreen({
       .join("");
 
   return (
-    <SafeAreaView style={authStyles.root}>
+    <SafeAreaView style={authStyles.root} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={authStyles.topRow}>
         <TouchableOpacity onPress={onBack} style={authStyles.backBtn} testID="admin-exit">
@@ -917,7 +917,7 @@ function LicenceScreen({
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={onLogout} testID="logout-button">
             <Ionicons name="arrow-back" size={26} color={DARK} />
@@ -1581,19 +1581,19 @@ const authStyles = StyleSheet.create({
 
   // Hero section at top of auth screens
   hero: {
-    paddingTop: 8,
-    paddingBottom: 28,
+    paddingTop: 0,
+    paddingBottom: 14,
     paddingHorizontal: 28,
     alignItems: "center",
   },
   heroBadge: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     backgroundColor: "#FFF1EC",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
+    marginBottom: 10,
     shadowColor: ORANGE,
     shadowOpacity: 0.15,
     shadowRadius: 16,
