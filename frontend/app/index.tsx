@@ -927,7 +927,7 @@ function LicenceScreen({
           <Image
             source={require("../assets/header_banner.png")}
             style={styles.headerBanner}
-            resizeMode="contain"
+            resizeMode="cover"
           />
 
           {/* Photo + QR consent */}
@@ -1917,10 +1917,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerBanner: {
-    width: Dimensions.get("window").width * 0.88,
-    height: Dimensions.get("window").width * 0.88 * (180 / 992),
-    alignSelf: "center",
-    marginTop: 4,
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").width * (180 / 992) * 0.7,
     backgroundColor: "#E53A2C",
   },
   headerTitle: {
