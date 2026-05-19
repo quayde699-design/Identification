@@ -13,6 +13,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -923,26 +924,11 @@ function LicenceScreen({
           showsVerticalScrollIndicator={false}
         >
           {/* Header strip */}
-          <View style={styles.headerStrip}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text
-                style={styles.headerTitle}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                PROBATIONARY DRIVER LICENCE
-              </Text>
-              <Text style={styles.headerSub}>Victoria Australia</Text>
-            </View>
-            <Image
-              source={{
-                uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/cogszfss_IMG_5144.jpeg",
-              }}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require("../assets/header_banner.jpg")}
+            style={styles.headerBanner}
+            resizeMode="contain"
+          />
 
           {/* Photo + QR consent */}
           <View style={styles.greenBlock}>
@@ -1929,6 +1915,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
+  },
+  headerBanner: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").width * (180 / 992),
+    backgroundColor: "#E53A2C",
   },
   headerTitle: {
     color: "#fff",
