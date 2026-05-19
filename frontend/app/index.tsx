@@ -288,7 +288,7 @@ function LoginScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[authStyles.hero, { marginTop: insets.top + 56 }]}>
+          <View style={[authStyles.hero, { marginTop: insets.top + 12 }]}>
             <View style={authStyles.heroBadge}>
               <MaterialCommunityIcons name="card-account-details" size={42} color={ORANGE} />
             </View>
