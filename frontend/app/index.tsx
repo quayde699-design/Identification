@@ -231,6 +231,7 @@ function LoginScreen({
   const [letters, setLetters] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
   const tryLogin = async () => {
@@ -345,6 +346,16 @@ function LoginScreen({
               )}
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={authStyles.supportBtn}
+              onPress={() => setSupportOpen(true)}
+              testID="contact-support-btn"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="help-buoy-outline" size={16} color={DARK} />
+              <Text style={authStyles.supportBtnText}>Contact support</Text>
+            </TouchableOpacity>
+
             {error ? (
               <View style={authStyles.errorBox} testID="login-error-box">
                 <Ionicons name="alert-circle" size={18} color="#B42318" />
@@ -358,6 +369,85 @@ function LoginScreen({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Contact support modal */}
+      <Modal
+        visible={supportOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSupportOpen(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={authStyles.supportBackdrop}
+          onPress={() => setSupportOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={authStyles.supportCard}>
+            <View style={authStyles.supportIconBubble}>
+              <Ionicons name="help-buoy" size={28} color={ORANGE} />
+            </View>
+            <Text style={authStyles.supportTitle}>Contact support</Text>
+            <Text style={authStyles.supportBody}>
+              Reach out to Quayde Burnham via your preferred channel.
+            </Text>
+
+            <TouchableOpacity
+              style={authStyles.snapBtn}
+              onPress={async () => {
+                const username = "quayde_burnham";
+                const appUrl = `snapchat://add/${username}`;
+                const webUrl = `https://www.snapchat.com/add/${username}`;
+                try {
+                  const can = await Linking.canOpenURL(appUrl);
+                  await Linking.openURL(can ? appUrl : webUrl);
+                } catch {
+                  Linking.openURL(webUrl).catch(() => {});
+                }
+                setSupportOpen(false);
+              }}
+              testID="support-snapchat"
+              activeOpacity={0.85}
+            >
+              <View style={authStyles.snapLogo}>
+                <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={authStyles.snapBtnLabel}>Snapchat</Text>
+                <Text style={authStyles.snapBtnHandle}>quayde_burnham</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={authStyles.emailBtn}
+              onPress={() => {
+                const email = "quaydeburnham67@gmail.com";
+                Linking.openURL(`mailto:${email}`).catch(() => {});
+                setSupportOpen(false);
+              }}
+              testID="support-email"
+              activeOpacity={0.85}
+            >
+              <View style={authStyles.emailLogo}>
+                <Ionicons name="mail" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={authStyles.emailBtnLabel}>Email</Text>
+                <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={authStyles.supportClose}
+              onPress={() => setSupportOpen(false)}
+              testID="support-close"
+            >
+              <Text style={authStyles.supportCloseText}>Close</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1729,6 +1819,109 @@ const authStyles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: { color: MUTED, fontSize: 12 },
+
+  // Contact-support pill (sits under Sign in button)
+  supportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#F2F4F7",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  supportBtnText: { color: DARK, fontWeight: "700", fontSize: 14 },
+
+  // Support modal
+  supportBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,34,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  supportCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 22,
+    alignItems: "stretch",
+  },
+  supportIconBubble: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#FFF1EC",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  supportTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: DARK,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  supportBody: {
+    fontSize: 13,
+    color: MUTED,
+    textAlign: "center",
+    marginBottom: 18,
+    lineHeight: 18,
+  },
+  snapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "#FFFC00",
+    marginBottom: 10,
+  },
+  snapLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#0F1722",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  snapBtnLabel: { color: DARK, fontWeight: "800", fontSize: 15 },
+  snapBtnHandle: { color: "#4a4406", fontWeight: "600", fontSize: 12, marginTop: 2 },
+  emailBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "#F7F8FA",
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+  },
+  emailLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: ORANGE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emailBtnLabel: { color: DARK, fontWeight: "800", fontSize: 15 },
+  emailBtnHandle: { color: MUTED, fontWeight: "600", fontSize: 12, marginTop: 2 },
+  supportClose: {
+    marginTop: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  supportCloseText: { color: MUTED, fontWeight: "700", fontSize: 14 },
 });
 
 const adminStyles = StyleSheet.create({
