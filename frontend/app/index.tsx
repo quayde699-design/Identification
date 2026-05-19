@@ -992,6 +992,11 @@ function LicenceScreen({
           <View style={styles.tabsRow}>
             {(["permit", "identity", "age"] as const).map((t) => {
               const active = activeTab === t;
+              const labels: Record<typeof t, string> = {
+                permit: "License",
+                identity: "Identity",
+                age: "Age",
+              };
               return (
                 <TouchableOpacity
                   key={t}
@@ -999,7 +1004,7 @@ function LicenceScreen({
                   style={[styles.tabBtn, active && styles.tabBtnActive]}
                 >
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                    {labels[t]}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1999,7 +2004,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
   },
-  tabBtnActive: { backgroundColor: "#6b7280" },
+  tabBtnActive: { backgroundColor: "#3A4656" },
   tabText: { color: MUTED, fontWeight: "600", fontSize: 15 },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
