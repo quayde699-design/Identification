@@ -491,7 +491,7 @@ function LoginScreen({
               <Text style={authStyles.supportBody}>
                 {supportStep === "reason"
                   ? "Tell us what's going on, then tap Next to pick how you'd like to reach Quayde."
-                  : "Quayde will be notified either way — your message is already on record."}
+                  : "Choose how you'd like to send your message."}
               </Text>
 
               {supportStep === "reason" ? (
