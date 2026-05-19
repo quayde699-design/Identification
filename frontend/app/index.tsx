@@ -292,7 +292,7 @@ function LoginScreen({
             <View style={authStyles.heroBadge}>
               <MaterialCommunityIcons name="card-account-details" size={42} color={ORANGE} />
             </View>
-            <Text style={authStyles.title}>VicRoads Licence</Text>
+            <Text style={authStyles.title}>Roleplay Identification</Text>
             <Text style={authStyles.sub}>Sign in with your codes to view your permit</Text>
           </View>
 
