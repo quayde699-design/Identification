@@ -1917,8 +1917,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerBanner: {
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").width * (180 / 992),
+    width: Dimensions.get("window").width * 0.88,
+    height: Dimensions.get("window").width * 0.88 * (180 / 992),
+    alignSelf: "center",
+    marginTop: 4,
     backgroundColor: "#E53A2C",
   },
   headerTitle: {
