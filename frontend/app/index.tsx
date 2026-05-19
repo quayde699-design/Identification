@@ -1060,10 +1060,15 @@ function AdminScreen({
         contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 30 }}
         showsVerticalScrollIndicator={false}
       >
+        {(() => {
+          const visibleAccounts = accounts.filter(
+            (a) => a.name.trim().toLowerCase() !== "test a user"
+          );
+          return <>
         <View style={adminStyles.sectionHead}>
           <Text style={adminStyles.sectionTitle}>Accounts</Text>
           <View style={adminStyles.countChip}>
-            <Text style={adminStyles.countChipText}>{accounts.length}</Text>
+            <Text style={adminStyles.countChipText}>{visibleAccounts.length}</Text>
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -1085,7 +1090,7 @@ function AdminScreen({
           </TouchableOpacity>
         </View>
 
-        {accounts.length === 0 && (
+        {visibleAccounts.length === 0 && (
           <View style={adminStyles.emptyWrap}>
             <View style={adminStyles.emptyIconBubble}>
               <Ionicons name="people-outline" size={36} color={MUTED} />
@@ -1095,7 +1100,7 @@ function AdminScreen({
           </View>
         )}
 
-        {accounts.map((a) => (
+        {visibleAccounts.map((a) => (
           <View key={a.id} style={adminStyles.card} testID={`account-${a.id}`}>
             <View style={adminStyles.avatar}>
               <Text style={adminStyles.avatarText}>{initials(a.name) || "?"}</Text>
@@ -1223,6 +1228,8 @@ function AdminScreen({
             </View>
           );
         })}
+          </>;
+        })()}
       </ScrollView>
 
       {/* Delete confirmation modal */}
