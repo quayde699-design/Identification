@@ -122,6 +122,16 @@ export default function Index() {
     refresh();
   }, []);
 
+  // Cross-device sync: poll the server every 4 seconds so that new accounts
+  // created on one device appear on others, and edits made on one device
+  // update the licence view on any other device viewing the same account.
+  useEffect(() => {
+    const id = setInterval(() => {
+      refresh();
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
   const refresh = async () => {
     try {
       const res = await fetch(`${API_BASE}/accounts`);
@@ -1206,14 +1216,11 @@ function LicenceScreen({
               {/* Licence details section */}
               <Text style={styles.editSection}>Licence</Text>
               <View style={styles.editGroup}>
-                <EditField label="Licence type" value={draft.licenceType}
-                  onChange={(v) => setDraft({ ...draft, licenceType: v })} />
+                <LockedRow label="Licence type" value={draft.licenceType} icon="car-outline" />
                 <View style={styles.editDivider} />
-                <EditField label="Permit status" value={draft.permitStatus}
-                  onChange={(v) => setDraft({ ...draft, permitStatus: v })} />
+                <LockedRow label="Permit status" value={draft.permitStatus} icon="checkmark-circle-outline" />
                 <View style={styles.editDivider} />
-                <EditField label="Proficiency" value={draft.proficiency}
-                  onChange={(v) => setDraft({ ...draft, proficiency: v })} />
+                <LockedRow label="Proficiency" value={draft.proficiency} icon="ribbon-outline" />
                 <View style={styles.editDivider} />
                 <DateField
                   label="Issue date"
@@ -1426,10 +1433,14 @@ function WheelColumn({
         disableIntervalMomentum
         contentContainerStyle={{ paddingVertical: ITEM_H * Math.floor(VISIBLE / 2) }}
         onScroll={(e) => {
-          // Only update the visual highlight while dragging; do not commit value.
+          // Update both the visual highlight AND the committed value live so
+          // that pressing "Done" always saves what the user currently sees.
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
           const clamped = Math.max(0, Math.min(data.length - 1, idx));
-          if (clamped !== centerIdx) setCenterIdx(clamped);
+          if (clamped !== centerIdx) {
+            setCenterIdx(clamped);
+            onChange(clamped);
+          }
         }}
         scrollEventThrottle={16}
         onScrollEndDrag={(e) => snapTo(e.nativeEvent.contentOffset.y)}
@@ -2027,14 +2038,14 @@ const styles = StyleSheet.create({
 
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   pBadge: {
-    backgroundColor: ORANGE,
-    borderRadius: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    minWidth: 26,
+    backgroundColor: "#E10600",
+    borderRadius: 0,
+    width: 26,
+    height: 26,
     alignItems: "center",
+    justifyContent: "center",
   },
-  pBadgeText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  pBadgeText: { color: "#fff", fontWeight: "900", fontSize: 16, lineHeight: 18 },
 
   signature: {
     fontSize: 44,
