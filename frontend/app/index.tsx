@@ -828,8 +828,8 @@ function LicenceScreen({
               <View pointerEvents="none" style={styles.watermarkOverlay}>
                 {[
                   { top: -15, left: -15 },
-                  { top: 80, right: -20 },
-                  { bottom: -15, left: -10 },
+                  { top: 60, right: -20 },
+                  { bottom: -15, left: -25 },
                 ].map((pos, i) => (
                   <Image
                     key={i}
