@@ -699,9 +699,21 @@ function LicenceScreen({
   const [draft, setDraft] = useState<Licence>(account.licence);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
   const [datePickerField, setDatePickerField] = useState<null | "dob" | "expiry" | "issueDate">(null);
+  const [dateBackup, setDateBackup] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [dateSaving, setDateSaving] = useState(false);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+
+  const openDatePicker = (field: "dob" | "expiry" | "issueDate") => {
+    setDateBackup(draft[field]);
+    setDatePickerField(field);
+  };
+  const cancelDatePicker = () => {
+    if (datePickerField) {
+      setDraft({ ...draft, [datePickerField]: dateBackup });
+    }
+    setDatePickerField(null);
+  };
 
   const parseDate = (s: string): Date => {
     const d = new Date(s);
@@ -1036,14 +1048,14 @@ function LicenceScreen({
               <DateField
                 label="Expiry"
                 value={draft.expiry}
-                onPress={() => setDatePickerField("expiry")}
+                onPress={() => openDatePicker("expiry")}
               />
               <EditField label="Licence type" value={draft.licenceType}
                 onChange={(v) => setDraft({ ...draft, licenceType: v })} />
               <DateField
                 label="Date of birth"
                 value={draft.dob}
-                onPress={() => setDatePickerField("dob")}
+                onPress={() => openDatePicker("dob")}
               />
               <EditField label="Address line 1" value={draft.addressLine1}
                 onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} />
@@ -1058,7 +1070,7 @@ function LicenceScreen({
               <DateField
                 label="Issue date"
                 value={draft.issueDate}
-                onPress={() => setDatePickerField("issueDate")}
+                onPress={() => openDatePicker("issueDate")}
               />
 
               <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 10 }}>
@@ -1078,7 +1090,7 @@ function LicenceScreen({
         visible={!!datePickerField}
         transparent
         animationType="fade"
-        onRequestClose={() => setDatePickerField(null)}
+        onRequestClose={cancelDatePicker}
       >
         <View style={styles.dateBackdrop}>
           <View style={styles.dateCard}>
@@ -1097,28 +1109,38 @@ function LicenceScreen({
                 }
               />
             )}
-            <TouchableOpacity
-              style={[styles.dateDoneBtn, dateSaving && { opacity: 0.85 }]}
-              disabled={dateSaving}
-              onPress={async () => {
-                if (dateSaving) return;
-                setDateSaving(true);
-                try {
-                  await onUpdateLicence(draft);
-                  setRefreshedAt(new Date());
-                  setDatePickerField(null);
-                } finally {
-                  setDateSaving(false);
-                }
-              }}
-              testID="date-done"
-            >
-              {dateSaving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.dateDoneText}>Done</Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.dateBtnRow}>
+              <TouchableOpacity
+                style={[styles.dateCancelBtn, dateSaving && { opacity: 0.6 }]}
+                disabled={dateSaving}
+                onPress={cancelDatePicker}
+                testID="date-cancel"
+              >
+                <Text style={styles.dateCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateDoneBtn, dateSaving && { opacity: 0.85 }]}
+                disabled={dateSaving}
+                onPress={async () => {
+                  if (dateSaving) return;
+                  setDateSaving(true);
+                  try {
+                    await onUpdateLicence(draft);
+                    setRefreshedAt(new Date());
+                    setDatePickerField(null);
+                  } finally {
+                    setDateSaving(false);
+                  }
+                }}
+                testID="date-done"
+              >
+                {dateSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.dateDoneText}>Done</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1718,12 +1740,29 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#0f1722",
   },
+  dateBtnRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 10,
+  },
+  dateCancelBtn: {
+    backgroundColor: "#e5e7eb",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 999,
+    minWidth: 110,
+    alignItems: "center",
+  },
+  dateCancelText: { color: DARK, fontWeight: "700", fontSize: 16 },
   dateDoneBtn: {
     backgroundColor: ORANGE,
     paddingHorizontal: 36,
     paddingVertical: 12,
     borderRadius: 999,
-    marginTop: 10,
+    minWidth: 110,
+    alignItems: "center",
   },
   dateDoneText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 });
