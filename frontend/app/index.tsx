@@ -235,9 +235,76 @@ function LoginScreen({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [supportReason, setSupportReason] = useState("");
+  const [supportError, setSupportError] = useState("");
+  const [supportSubmitting, setSupportSubmitting] = useState<null | "snapchat" | "email">(null);
   const insets = useSafeAreaInsets();
   const snapScale = React.useRef(new Animated.Value(1)).current;
   const emailScale = React.useRef(new Animated.Value(1)).current;
+
+  const closeSupport = () => {
+    setSupportOpen(false);
+    setSupportError("");
+    setSupportReason("");
+    setSupportSubmitting(null);
+  };
+
+  const submitSupport = async (channel: "snapchat" | "email") => {
+    const reason = supportReason.trim();
+    if (reason.length < 3) {
+      setSupportError("Please type a short reason first (at least 3 characters).");
+      return;
+    }
+    setSupportError("");
+    setSupportSubmitting(channel);
+
+    // 1. Log it to the backend so the owner sees every request
+    fetch(`${API_BASE}/support`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, channel }),
+    }).catch(() => {});
+
+    // 2. Fire the channel synchronously (keep iOS Safari gesture chain)
+    if (channel === "email") {
+      const email = "quaydeburnham67@gmail.com";
+      const subject = encodeURIComponent("Digi ID — support request");
+      const body = encodeURIComponent(reason + "\n\n— Sent from Digi ID app");
+      const url = `mailto:${email}?subject=${subject}&body=${body}`;
+      if (Platform.OS === "web") {
+        window.location.href = url;
+      } else {
+        Linking.openURL(url).catch(() => {});
+      }
+    } else {
+      // Snapchat: copy reason to clipboard so the user can paste in chat,
+      // then open the Add-Friend page.
+      const username = "quayde_burnham";
+      const webUrl = `https://www.snapchat.com/add/${username}`;
+      try {
+        if (Platform.OS === "web" && (navigator as any)?.clipboard?.writeText) {
+          (navigator as any).clipboard.writeText(reason).catch(() => {});
+        }
+      } catch {}
+      if (Platform.OS === "web") {
+        try {
+          const w = window.open(webUrl, "_blank");
+          if (!w) window.location.href = webUrl;
+        } catch {
+          window.location.href = webUrl;
+        }
+      } else {
+        Linking.openURL(`snapchat://add/${username}`).catch(() =>
+          Linking.openURL(webUrl).catch(() => {})
+        );
+      }
+    }
+
+    // Close after the press animation has played
+    setTimeout(() => {
+      closeSupport();
+    }, 350);
+  };
 
   const tryLogin = async () => {
     if (loading) return;
@@ -379,125 +446,145 @@ function LoginScreen({
         visible={supportOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setSupportOpen(false)}
+        onRequestClose={closeSupport}
       >
         <TouchableOpacity
           activeOpacity={1}
           style={authStyles.supportBackdrop}
-          onPress={() => setSupportOpen(false)}
+          onPress={closeSupport}
         >
-          <TouchableOpacity activeOpacity={1} style={authStyles.supportCard}>
-            <View style={authStyles.supportIconBubble}>
-              <Ionicons name="help-buoy" size={28} color={ORANGE} />
-            </View>
-            <Text style={authStyles.supportTitle}>Contact support</Text>
-            <Text style={authStyles.supportBody}>
-              Reach out to Quayde Burnham via your preferred channel.
-            </Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={{ width: "100%", alignItems: "center" }}
+          >
+            <TouchableOpacity activeOpacity={1} style={authStyles.supportCard}>
+              <View style={authStyles.supportIconBubble}>
+                <Ionicons name="help-buoy" size={28} color={ORANGE} />
+              </View>
+              <Text style={authStyles.supportTitle}>Contact support</Text>
+              <Text style={authStyles.supportBody}>
+                Tell us what's going on, then pick a channel — Quayde will be notified.
+              </Text>
 
-            <Animated.View style={{ transform: [{ scale: snapScale }] }}>
+              <Text style={authStyles.supportFieldLabel}>Reason</Text>
+              <TextInput
+                style={authStyles.supportInput}
+                value={supportReason}
+                onChangeText={(v) => {
+                  setSupportReason(v);
+                  if (supportError) setSupportError("");
+                }}
+                placeholder="e.g. Can't sign in with my code, my licence photo won't save…"
+                placeholderTextColor="#9aa1ad"
+                multiline
+                maxLength={1000}
+                textAlignVertical="top"
+                testID="support-reason"
+                editable={!supportSubmitting}
+              />
+              <Text style={authStyles.supportCounter}>{supportReason.length}/1000</Text>
+
+              {supportError ? (
+                <View style={authStyles.supportErrorBox} testID="support-error-box">
+                  <Ionicons name="alert-circle" size={16} color="#B42318" />
+                  <Text style={authStyles.supportErrorText}>{supportError}</Text>
+                </View>
+              ) : null}
+
+              <Animated.View style={{ transform: [{ scale: snapScale }] }}>
+                <TouchableOpacity
+                  style={[
+                    authStyles.snapBtn,
+                    supportSubmitting && supportSubmitting !== "snapchat" && { opacity: 0.5 },
+                  ]}
+                  disabled={!!supportSubmitting}
+                  onPressIn={() => {
+                    Animated.timing(snapScale, {
+                      toValue: 0.92,
+                      duration: 90,
+                      easing: Easing.out(Easing.quad),
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                  onPressOut={() => {
+                    Animated.spring(snapScale, {
+                      toValue: 1,
+                      friction: 4,
+                      tension: 160,
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                  onPress={() => submitSupport("snapchat")}
+                  testID="support-snapchat"
+                  activeOpacity={0.9}
+                >
+                  <View style={authStyles.snapLogo}>
+                    <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={authStyles.snapBtnLabel}>Send via Snapchat</Text>
+                    <Text style={authStyles.snapBtnHandle}>quayde_burnham · reason copied to clipboard</Text>
+                  </View>
+                  {supportSubmitting === "snapchat" ? (
+                    <ActivityIndicator size="small" color={DARK} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View style={{ transform: [{ scale: emailScale }] }}>
+                <TouchableOpacity
+                  style={[
+                    authStyles.emailBtn,
+                    supportSubmitting && supportSubmitting !== "email" && { opacity: 0.5 },
+                  ]}
+                  disabled={!!supportSubmitting}
+                  onPressIn={() => {
+                    Animated.timing(emailScale, {
+                      toValue: 0.92,
+                      duration: 90,
+                      easing: Easing.out(Easing.quad),
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                  onPressOut={() => {
+                    Animated.spring(emailScale, {
+                      toValue: 1,
+                      friction: 4,
+                      tension: 160,
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                  onPress={() => submitSupport("email")}
+                  testID="support-email"
+                  activeOpacity={0.9}
+                >
+                  <View style={authStyles.emailLogo}>
+                    <Ionicons name="mail" size={22} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={authStyles.emailBtnLabel}>Send via Email</Text>
+                    <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
+                  </View>
+                  {supportSubmitting === "email" ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+
               <TouchableOpacity
-                style={authStyles.snapBtn}
-                onPressIn={() => {
-                  Animated.timing(snapScale, {
-                    toValue: 0.92,
-                    duration: 90,
-                    easing: Easing.out(Easing.quad),
-                    useNativeDriver: true,
-                  }).start();
-                }}
-                onPressOut={() => {
-                  Animated.spring(snapScale, {
-                    toValue: 1,
-                    friction: 4,
-                    tension: 160,
-                    useNativeDriver: true,
-                  }).start();
-                }}
-                onPress={() => {
-                  const username = "quayde_burnham";
-                  const appUrl = `snapchat://add/${username}`;
-                  const webUrl = `https://www.snapchat.com/add/${username}`;
-                  if (Platform.OS === "web") {
-                    // Synchronous navigation keeps the user-gesture chain alive
-                    try {
-                      const w = window.open(webUrl, "_blank");
-                      if (!w) window.location.href = webUrl;
-                    } catch {
-                      window.location.href = webUrl;
-                    }
-                  } else {
-                    Linking.openURL(appUrl).catch(() =>
-                      Linking.openURL(webUrl).catch(() => {})
-                    );
-                  }
-                  setTimeout(() => setSupportOpen(false), 220);
-                }}
-                testID="support-snapchat"
-                activeOpacity={0.9}
+                style={authStyles.supportClose}
+                onPress={closeSupport}
+                testID="support-close"
+                disabled={!!supportSubmitting}
               >
-                <View style={authStyles.snapLogo}>
-                  <Ionicons name="logo-snapchat" size={22} color="#FFFC00" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={authStyles.snapBtnLabel}>Snapchat</Text>
-                  <Text style={authStyles.snapBtnHandle}>quayde_burnham</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
+                <Text style={authStyles.supportCloseText}>Close</Text>
               </TouchableOpacity>
-            </Animated.View>
-
-            <Animated.View style={{ transform: [{ scale: emailScale }] }}>
-              <TouchableOpacity
-                style={authStyles.emailBtn}
-                onPressIn={() => {
-                  Animated.timing(emailScale, {
-                    toValue: 0.92,
-                    duration: 90,
-                    easing: Easing.out(Easing.quad),
-                    useNativeDriver: true,
-                  }).start();
-                }}
-                onPressOut={() => {
-                  Animated.spring(emailScale, {
-                    toValue: 1,
-                    friction: 4,
-                    tension: 160,
-                    useNativeDriver: true,
-                  }).start();
-                }}
-                onPress={() => {
-                  const email = "quaydeburnham67@gmail.com";
-                  const url = `mailto:${email}`;
-                  if (Platform.OS === "web") {
-                    window.location.href = url;
-                  } else {
-                    Linking.openURL(url).catch(() => {});
-                  }
-                  setTimeout(() => setSupportOpen(false), 220);
-                }}
-                testID="support-email"
-                activeOpacity={0.9}
-              >
-                <View style={authStyles.emailLogo}>
-                  <Ionicons name="mail" size={22} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={authStyles.emailBtnLabel}>Email</Text>
-                  <Text style={authStyles.emailBtnHandle}>quaydeburnham67@gmail.com</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#cbd0d8" />
-              </TouchableOpacity>
-            </Animated.View>
-
-            <TouchableOpacity
-              style={authStyles.supportClose}
-              onPress={() => setSupportOpen(false)}
-              testID="support-close"
-            >
-              <Text style={authStyles.supportCloseText}>Close</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
+          </KeyboardAvoidingView>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
@@ -635,6 +722,55 @@ function AdminScreen({
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [lockingId, setLockingId] = useState<string | null>(null);
+  const [supportRequests, setSupportRequests] = useState<
+    { id: string; reason: string; channel: string; createdAt: string; seen: boolean }[]
+  >([]);
+  const [deletingSupportId, setDeletingSupportId] = useState<string | null>(null);
+
+  const loadSupport = React.useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/support`);
+      if (r.ok) setSupportRequests(await r.json());
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    loadSupport();
+    const t = setInterval(loadSupport, 6000);
+    return () => clearInterval(t);
+  }, [loadSupport]);
+
+  const markSupportSeen = async (id: string) => {
+    try {
+      await fetch(`${API_BASE}/support/${id}/seen`, { method: "PUT" });
+      setSupportRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, seen: true } : r))
+      );
+    } catch {}
+  };
+  const deleteSupport = async (id: string) => {
+    if (deletingSupportId) return;
+    setDeletingSupportId(id);
+    try {
+      await fetch(`${API_BASE}/support/${id}`, { method: "DELETE" });
+      setSupportRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {}
+    setDeletingSupportId(null);
+  };
+
+  const formatTs = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      let h = d.getHours();
+      const ampm = h >= 12 ? "pm" : "am";
+      h = h % 12 || 12;
+      return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(h).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${ampm}`;
+    } catch {
+      return iso;
+    }
+  };
+  const unseenCount = supportRequests.filter((r) => !r.seen).length;
 
   const randomize = () => {
     setDigits(randomDigits(6));
@@ -824,6 +960,81 @@ function AdminScreen({
             </TouchableOpacity>
           </View>
         ))}
+
+        {/* ---------- Support requests ---------- */}
+        <View style={[adminStyles.sectionHead, { marginTop: 18 }]}>
+          <Text style={adminStyles.sectionTitle}>Support requests</Text>
+          <View style={adminStyles.countChip}>
+            <Text style={adminStyles.countChipText}>
+              {unseenCount > 0 ? `${unseenCount} new` : supportRequests.length}
+            </Text>
+          </View>
+        </View>
+
+        {supportRequests.length === 0 && (
+          <View style={adminStyles.emptyWrap}>
+            <View style={adminStyles.emptyIconBubble}>
+              <Ionicons name="chatbubble-ellipses-outline" size={32} color={MUTED} />
+            </View>
+            <Text style={adminStyles.emptyTitle}>No support requests</Text>
+            <Text style={adminStyles.emptySub}>
+              When someone contacts support from the login screen, their message will appear here.
+            </Text>
+          </View>
+        )}
+
+        {supportRequests.map((r) => {
+          const isSnap = r.channel === "snapchat";
+          return (
+            <View key={r.id} style={adminStyles.supportRow} testID={`support-row-${r.id}`}>
+              <View
+                style={[
+                  adminStyles.supportChannelBubble,
+                  isSnap
+                    ? { backgroundColor: "#FFFC00" }
+                    : { backgroundColor: ORANGE },
+                ]}
+              >
+                <Ionicons
+                  name={isSnap ? "logo-snapchat" : "mail"}
+                  size={18}
+                  color={isSnap ? DARK : "#fff"}
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={adminStyles.supportRowHead}>
+                  <Text style={adminStyles.supportChannelLabel}>
+                    {isSnap ? "Snapchat" : "Email"}
+                  </Text>
+                  {!r.seen && <View style={adminStyles.supportDot} />}
+                  <Text style={adminStyles.supportTime}>{formatTs(r.createdAt)}</Text>
+                </View>
+                <Text style={adminStyles.supportReason}>{r.reason}</Text>
+                <View style={adminStyles.supportActionRow}>
+                  {!r.seen && (
+                    <TouchableOpacity
+                      onPress={() => markSupportSeen(r.id)}
+                      testID={`support-seen-${r.id}`}
+                    >
+                      <Text style={adminStyles.supportActionPrimary}>Mark as read</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => deleteSupport(r.id)}
+                    disabled={deletingSupportId === r.id}
+                    testID={`support-delete-${r.id}`}
+                  >
+                    {deletingSupportId === r.id ? (
+                      <ActivityIndicator size="small" color="#c0392b" />
+                    ) : (
+                      <Text style={adminStyles.supportActionDanger}>Delete</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          );
+        })}
       </ScrollView>
 
       {/* Delete confirmation modal */}
@@ -1922,6 +2133,47 @@ const authStyles = StyleSheet.create({
     marginBottom: 18,
     lineHeight: 18,
   },
+  supportFieldLabel: {
+    color: DARK,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  supportInput: {
+    minHeight: 90,
+    maxHeight: 160,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FAFBFC",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: DARK,
+    fontWeight: "500",
+    lineHeight: 19,
+  },
+  supportCounter: {
+    fontSize: 11,
+    color: MUTED,
+    textAlign: "right",
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  supportErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FDECEC",
+    borderColor: "#F5C2C7",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  supportErrorText: { color: "#B42318", fontSize: 13, fontWeight: "700", flex: 1 },
   snapBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -2147,6 +2399,64 @@ const adminStyles = StyleSheet.create({
     alignItems: "center",
   },
   confirmBtnText: { fontWeight: "800", fontSize: 15 },
+
+  // Support requests rows in admin
+  supportRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+    gap: 10,
+  },
+  supportChannelBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportRowHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  supportChannelLabel: { color: DARK, fontWeight: "800", fontSize: 13 },
+  supportDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ORANGE,
+    marginLeft: 2,
+  },
+  supportTime: { color: MUTED, fontSize: 11, marginLeft: "auto" },
+  supportReason: {
+    color: DARK,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 19,
+    marginTop: 4,
+  },
+  supportActionRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 8,
+  },
+  supportActionPrimary: {
+    color: ORANGE,
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  supportActionDanger: {
+    color: "#c0392b",
+    fontWeight: "800",
+    fontSize: 13,
+  },
 });
 
 const styles = StyleSheet.create({
