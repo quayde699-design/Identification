@@ -1205,33 +1205,38 @@ function WheelColumn({
 
   const [centerIdx, setCenterIdx] = React.useState(initialIndex);
 
+  const snapTo = (rawY: number) => {
+    const idx = Math.round(rawY / ITEM_H);
+    const clamped = Math.max(0, Math.min(data.length - 1, idx));
+    // Programmatically snap to the locked row so the UI matches the value.
+    if (ref.current) {
+      ref.current.scrollTo({ y: clamped * ITEM_H, animated: true });
+    }
+    if (clamped !== centerIdx) {
+      setCenterIdx(clamped);
+    }
+    onChange(clamped);
+  };
+
   return (
     <View style={{ width, height: PICKER_H }}>
       <ScrollView
         ref={ref}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_H}
+        snapToAlignment="start"
         decelerationRate="fast"
+        disableIntervalMomentum
         contentContainerStyle={{ paddingVertical: ITEM_H * Math.floor(VISIBLE / 2) }}
         onScroll={(e) => {
+          // Only update the visual highlight while dragging; do not commit value.
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
           const clamped = Math.max(0, Math.min(data.length - 1, idx));
-          if (clamped !== centerIdx) {
-            setCenterIdx(clamped);
-            onChange(clamped);
-          }
+          if (clamped !== centerIdx) setCenterIdx(clamped);
         }}
         scrollEventThrottle={16}
-        onScrollEndDrag={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-          const clamped = Math.max(0, Math.min(data.length - 1, idx));
-          onChange(clamped);
-        }}
-        onMomentumScrollEnd={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-          const clamped = Math.max(0, Math.min(data.length - 1, idx));
-          onChange(clamped);
-        }}
+        onScrollEndDrag={(e) => snapTo(e.nativeEvent.contentOffset.y)}
+        onMomentumScrollEnd={(e) => snapTo(e.nativeEvent.contentOffset.y)}
       >
         {data.map((item, i) => (
           <View
