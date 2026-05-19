@@ -350,9 +350,8 @@ function LoginScreen({
               style={authStyles.supportBtn}
               onPress={() => setSupportOpen(true)}
               testID="contact-support-btn"
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
-              <Ionicons name="help-buoy-outline" size={16} color={DARK} />
               <Text style={authStyles.supportBtnText}>Contact support</Text>
             </TouchableOpacity>
 
@@ -1836,20 +1835,15 @@ const authStyles = StyleSheet.create({
   },
   footerText: { color: MUTED, fontSize: 12 },
 
-  // Contact-support pill (sits under Sign in button)
+  // Contact-support text link (sits under Sign in button)
   supportBtn: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginTop: 12,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#F2F4F7",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    marginTop: 14,
+    paddingVertical: 8,
+    backgroundColor: "transparent",
   },
-  supportBtnText: { color: DARK, fontWeight: "700", fontSize: 14 },
+  supportBtnText: { color: "#000", fontWeight: "800", fontSize: 15, letterSpacing: 0.2 },
 
   // Support modal
   supportBackdrop: {
