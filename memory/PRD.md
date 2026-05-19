@@ -34,6 +34,13 @@ A single-screen Expo app (mobile + web) that mimics a Victorian Probationary Dri
 - Backend and frontend both running under supervisor.
 - Verified end-to-end: backend pytest 7/7 pass, Playwright E2E (admin login → create account → user login → view card → lock/unlock → delete) pass.
 
+## Iteration 2 — User-Requested Tweaks (May 19, 2026)
+- **P badge** → bright red (`#E10600`), 26×26 square, `borderRadius: 0` (both on Proficiency row and Licence-type row).
+- **Read-only Licence-type / Permit-status / Proficiency** → swapped `EditField` for `LockedRow` with lock icons in the edit-details modal. Users can no longer change "Car", "Current" or "Probationary".
+- **Date picker confirm** → WheelColumn now commits value live during scroll, so tapping **Done** always saves what the user currently sees. Done also issues an immediate PUT to the backend.
+- **Cross-device sync** → added a 4-second polling loop in the root `Index` component that refetches `/api/accounts`. New accounts created on one preview now appear on others, and edits to a licence propagate to every device viewing the same account within ~4s, without manual refresh.
+- All changes regression-tested: 100% backend (7/7 pytest), 100% frontend (Playwright two-context cross-device sync verified).
+
 ## Backlog / Future Improvements (P1–P2)
 - (P2) Migrate deprecated `shadow*` and `props.pointerEvents` to `boxShadow` / `style.pointerEvents` to silence RN-web warnings.
 - (P2) Enforce duplicate `(digits, letters)` uniqueness on PUT, not only POST. Add a compound MongoDB unique index.
