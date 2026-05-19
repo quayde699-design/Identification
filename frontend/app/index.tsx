@@ -1505,7 +1505,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
   },
-  tabBtnActive: { backgroundColor: "#6b7280" },
+  tabBtnActive: { backgroundColor: DARK },
   tabText: { color: MUTED, fontWeight: "600", fontSize: 15 },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
