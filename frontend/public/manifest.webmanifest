@@ -1,6 +1,6 @@
 {
-  "name": "Digi ID",
-  "short_name": "Digi ID",
+  "name": "FID",
+  "short_name": "FID",
   "description": "Digital Identification wallet",
   "start_url": "/",
   "scope": "/",

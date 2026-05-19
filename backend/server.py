@@ -49,6 +49,7 @@ class Licence(BaseModel):
     issueDate: str = "15 Jan 2027"
     cardNumber: str = ""
     photoUri: str = ""
+    bannerLogoUri: str = ""
 
 
 class Receipt(BaseModel):
@@ -225,10 +226,10 @@ async def delete_support(request_id: str):
 
 # ---------- Products / pricing ----------
 DEFAULT_PRODUCTS = [
-    {"id": "base",            "name": "Base Digi ID",                      "price": 35.0},
-    {"id": "premium_starter", "name": "Premium Starter Digi ID",           "price": 45.0},
-    {"id": "managers",        "name": "Managers Special Digi ID",          "price": 25.0},
-    {"id": "managers_premium","name": "Managers Special Premium Digi ID",  "price": 35.0},
+    {"id": "base",            "name": "Base FID",                      "price": 35.0},
+    {"id": "premium_starter", "name": "Premium Starter FID",           "price": 45.0},
+    {"id": "managers",        "name": "Managers Special FID",          "price": 25.0},
+    {"id": "managers_premium","name": "Managers Special Premium FID",  "price": 35.0},
 ]
 
 
@@ -290,6 +291,23 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def backfill_numbers():
+    # Refresh product names from canonical DEFAULT_PRODUCTS (keep stored prices)
+    settings_doc = await db.settings.find_one({"_id": "products"})
+    if settings_doc:
+        stored = settings_doc.get("products", []) or []
+        defaults_by_id = {d["id"]: d for d in DEFAULT_PRODUCTS}
+        refreshed = []
+        for p in stored:
+            d = defaults_by_id.get(p.get("id"))
+            if d:
+                refreshed.append({"id": d["id"], "name": d["name"], "price": float(p.get("price", d["price"]))})
+            else:
+                refreshed.append(p)
+        if refreshed != stored:
+            await db.settings.update_one(
+                {"_id": "products"}, {"$set": {"products": refreshed}}, upsert=True
+            )
+
     cursor = db.accounts.find({}, {"_id": 0})
     async for doc in cursor:
         l = doc.get("licence") or {}

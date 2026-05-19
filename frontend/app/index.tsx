@@ -57,6 +57,7 @@ type Licence = {
   issueDate: string;
   cardNumber: string;
   photoUri: string;
+  bannerLogoUri: string;
 };
 
 type Receipt = {
@@ -92,6 +93,7 @@ const DEFAULT_LICENCE: Licence = {
   issueDate: "15 Jan 2027",
   cardNumber: "",
   photoUri: "",
+  bannerLogoUri: "",
 };
 
 // ---------- Helpers ----------
@@ -299,8 +301,8 @@ function LoginScreen({
     // 2. Fire the channel synchronously (keep iOS Safari gesture chain)
     if (channel === "email") {
       const email = "quaydeburnham67@gmail.com";
-      const subject = encodeURIComponent("Digi ID — support request");
-      const body = encodeURIComponent(reason + "\n\n— Sent from Digi ID app");
+      const subject = encodeURIComponent("FID — support request");
+      const body = encodeURIComponent(reason + "\n\n— Sent from FID app");
       const url = `mailto:${email}?subject=${subject}&body=${body}`;
       if (Platform.OS === "web") {
         window.location.href = url;
@@ -396,7 +398,7 @@ function LoginScreen({
             <View style={authStyles.heroBadge}>
               <MaterialCommunityIcons name="card-account-details" size={42} color={ORANGE} />
             </View>
-            <Text style={authStyles.title}>Digi ID</Text>
+            <Text style={authStyles.title}>FID</Text>
             <Text style={authStyles.sub}>Sign in with your codes to view your permit</Text>
           </View>
 
@@ -970,6 +972,7 @@ function AdminScreen({
             proficiency: "Probationary",
             issueDate: "15 Jan 2027",
             photoUri: "",
+            bannerLogoUri: "",
           },
           receipt,
         }),
@@ -1735,7 +1738,7 @@ function ReceiptModal({
                 <MaterialCommunityIcons name="card-account-details" size={28} color="#fff" />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={receiptStyles.bizName}>DIGI ID</Text>
+                <Text style={receiptStyles.bizName}>FID</Text>
                 <Text style={receiptStyles.bizSub}>Probationary licence wallet · Victoria</Text>
               </View>
             </View>
@@ -1838,6 +1841,7 @@ function LicenceScreen({
   const [saving, setSaving] = useState(false);
   const [dateSaving, setDateSaving] = useState(false);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+  const [pickingBannerLogo, setPickingBannerLogo] = useState(false);
 
   const openDatePicker = (field: "dob" | "expiry" | "issueDate") => {
     setDateBackup(draft[field]);
@@ -1918,6 +1922,32 @@ function LicenceScreen({
     }
   };
 
+  const pickBannerLogo = async () => {
+    if (isReadOnly) return;
+    if (pickingBannerLogo) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo access to change the banner logo.");
+      return;
+    }
+    setPickingBannerLogo(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const a = result.assets[0];
+        const uri = a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
+        setDraft({ ...draft, bannerLogoUri: uri });
+      }
+    } finally {
+      setPickingBannerLogo(false);
+    }
+  };
+
   const fullName = account.name.toUpperCase();
   const initials = account.name
     .split(/\s+/)
@@ -1961,7 +1991,9 @@ function LicenceScreen({
             </View>
             <Image
               source={{
-                uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/cogszfss_IMG_5144.jpeg",
+                uri:
+                  data.bannerLogoUri ||
+                  "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
               }}
               style={styles.logoImage}
               resizeMode="contain"
@@ -2211,6 +2243,53 @@ function LicenceScreen({
                     </>
                   )}
                 </TouchableOpacity>
+              </View>
+
+              {/* Banner logo card */}
+              <View style={styles.editPhotoCard}>
+                <View style={[styles.editPhotoFrame, { backgroundColor: ORANGE, padding: 10 }]}>
+                  {draft.bannerLogoUri ? (
+                    <Image
+                      source={{ uri: draft.bannerLogoUri }}
+                      style={styles.editLogoImg}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={[styles.editLogoImg, { alignItems: "center", justifyContent: "center" }]}>
+                      <Ionicons name="image-outline" size={26} color="#ffffff99" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.editPhotoTitle}>Banner logo</Text>
+                <Text style={styles.editPhotoSub}>Shown on the red banner. Tap to upload.</Text>
+                <TouchableOpacity
+                  onPress={pickBannerLogo}
+                  disabled={pickingBannerLogo}
+                  style={[styles.editPhotoBtn, pickingBannerLogo && { opacity: 0.85 }]}
+                  testID="pick-banner-logo"
+                  activeOpacity={0.85}
+                >
+                  {pickingBannerLogo ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="image" size={16} color="#fff" />
+                      <Text style={styles.editPhotoBtnText}>
+                        {draft.bannerLogoUri ? "Change logo" : "Upload logo"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {draft.bannerLogoUri ? (
+                  <TouchableOpacity
+                    onPress={() => setDraft({ ...draft, bannerLogoUri: "" })}
+                    style={styles.editLogoRemoveBtn}
+                    testID="remove-banner-logo"
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.editLogoRemoveText}>Remove logo</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {/* Identity section */}
@@ -3749,6 +3828,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   editPhotoBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  editLogoImg: {
+    width: 110,
+    height: 38,
+    borderRadius: 4,
+  },
+  editLogoRemoveBtn: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  editLogoRemoveText: {
+    color: MUTED,
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
   editSection: {
     fontSize: 12,
     fontWeight: "800",
