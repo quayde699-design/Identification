@@ -923,17 +923,24 @@ function LicenceScreen({
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header strip — native text + real cropped logo */}
-          <View style={styles.headerBanner}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.headerBannerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          {/* Header strip */}
+          <View style={styles.headerStrip}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text
+                style={styles.headerTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 PROBATIONARY DRIVER LICENCE
               </Text>
-              <Text style={styles.headerBannerSub}>Victoria Australia</Text>
+              <Text style={styles.headerSub}>Victoria Australia</Text>
             </View>
             <Image
-              source={require("../assets/vicroads_logo.png")}
-              style={styles.headerLogoImg}
+              source={{
+                uri: "https://customer-assets.emergentagent.com/job_permit-wallet/artifacts/cogszfss_IMG_5144.jpeg",
+              }}
+              style={styles.logoImage}
               resizeMode="contain"
             />
           </View>
@@ -1923,33 +1930,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-  },
-  headerBanner: {
-    backgroundColor: "#E53A2C",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  headerLeft: { flex: 1, marginRight: 12 },
-  headerBannerTitle: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  headerBannerSub: {
-    color: "#fff",
-    fontSize: 11,
-    fontStyle: "italic",
-    fontWeight: "500",
-    marginTop: 2,
-    opacity: 0.95,
-  },
-  headerLogoImg: {
-    width: 100,
-    height: 100 / 2.59,
   },
   headerTitle: {
     color: "#fff",
