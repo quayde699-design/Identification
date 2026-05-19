@@ -1,23 +1,45 @@
-# Probationary Driver Licence — Mobile Screen
+# Product Requirements Document — VicRoads Probationary Licence Wallet
 
-## Overview
-Single-screen Expo mobile app that mimics a Victorian Probationary Driver Licence in a digital wallet style, matching the user-provided VicRoads screenshots.
+## Original Problem Statement
+> Build me this github app — https://github.com/quayde699-design/Identification
 
-## Key Features
-- **Header strip** (orange/red): "PROBATIONARY DRIVER LICENCE / Victoria Australia" + VicRoads-style logo.
-- **Photo + QR consent block** (light green): initials avatar with subtle crown-shield watermark overlay, info panel with consent prompt and "Reveal QR code" pill button.
-- **Tab bar**: Permit (active) / Identity / Age. Identity & Age render empty placeholder states.
-- **Permit details**: full name, permit number, expiry, licence type with "P" badge, DOB, address (multi-line uppercase), cursive signature, permit status (with green check), proficiency, issue/expiry dates, card number, simulated Victoria Police barcode.
-- **Edit mode**: top-right pencil icon opens a full-screen modal letting the user edit every field; saved values persist via AsyncStorage.
-- **QR Reveal**: tapping the dark pill opens a modal showing a real, generated QR code containing the licence data (react-native-qrcode-svg).
-- **Reset**: clears AsyncStorage and restores fake placeholder defaults.
+User asked us to clone and run the existing Expo + FastAPI app from the provided GitHub repo.
 
-## Tech
-- Expo Router single screen (`/app/index.tsx`).
-- AsyncStorage for local persistence (`@react-native-async-storage/async-storage`).
-- `react-native-qrcode-svg` + `react-native-svg` for QR.
-- `@expo/vector-icons` for icons.
-- No backend; pure frontend mockup with editable, persistent fake data.
+## Goal
+A single-screen Expo app (mobile + web) that mimics a Victorian Probationary Driver Licence in a digital wallet style, backed by a FastAPI + MongoDB API for account/licence persistence, with a hidden Admin console for managing licence holders.
 
-## Default placeholder data
-QUAYDE A BURNHAM · permit 873 361 653 · exp 04 Jul 2026 · DOB 04 Jul 2007 · 9 SHARPES RD, MINERS REST 3352 VIC · Card P3497519.
+## Architecture
+- **Frontend**: Expo Router (single screen `/app/index.tsx`) — TypeScript, React Native + react-native-web. Served via `expo start --web --port 3000`.
+- **Backend**: FastAPI (`/app/backend/server.py`) on port 8001, MongoDB via Motor. Collection: `accounts` in DB `vicroads_licence`.
+- **Routing**: All backend endpoints prefixed with `/api`; Kubernetes ingress maps `/api/*` to 8001 and everything else to 3000.
+
+## User Personas
+1. **Licence holder (end-user)** — Receives a 6-digit + 3-letter code from admin, signs in to view their probationary licence card, can edit personal details and reveal a QR code.
+2. **Administrator** — Uses a hardcoded admin code (4095 / QUAYDE) to access the admin console, create new licence holders, lock accounts, and delete them.
+
+## Core Requirements (static)
+- VicRoads-styled probationary licence card layout (orange header, photo + QR consent block, tabs: License / Identity / Age, full details, barcode).
+- 6-digit + 3-letter code authentication per licence holder.
+- Admin console with create/lock/unlock/delete actions and randomize-codes helper.
+- Editable licence details (DOB, address, signature, dates, photo via expo-image-picker) persisted via the backend.
+- QR reveal modal with QR generated from licence data.
+- Data persisted server-side (MongoDB) — admin changes are visible across devices.
+
+## What's Been Implemented (May 19, 2026)
+- Cloned existing repo into `/app`, installed Python deps (`pip install -r requirements.txt`) and JS deps (`yarn install`).
+- Created `/app/backend/.env` (`MONGO_URL`, `DB_NAME=vicroads_licence`, `CORS_ORIGINS=*`).
+- Created `/app/frontend/.env` (`EXPO_PUBLIC_BACKEND_URL=<preview-domain>`).
+- Set Expo to bind to web on port 3000 (`"start": "expo start --web --port 3000"` in `package.json`).
+- Copied `assets/images/splash-image.png` → `splash-icon.png` to satisfy `app.json` splash config.
+- Backend and frontend both running under supervisor.
+- Verified end-to-end: backend pytest 7/7 pass, Playwright E2E (admin login → create account → user login → view card → lock/unlock → delete) pass.
+
+## Backlog / Future Improvements (P1–P2)
+- (P2) Migrate deprecated `shadow*` and `props.pointerEvents` to `boxShadow` / `style.pointerEvents` to silence RN-web warnings.
+- (P2) Enforce duplicate `(digits, letters)` uniqueness on PUT, not only POST. Add a compound MongoDB unique index.
+- (P2) Switch FastAPI `on_event` startup/shutdown handlers to the modern `lifespan` API.
+- (P2) Split the ~2260-line `index.tsx` into per-screen modules (`LoginScreen`, `AdminScreen`, `LicenceScreen`, styles).
+- (P1) Move admin credentials out of frontend bundle into a server-side admin login endpoint (currently `4095/QUAYDE` is in the JS bundle).
+
+## Next Action Items
+- None blocking — wallet is fully functional. Ready for user review.
