@@ -923,12 +923,19 @@ function LicenceScreen({
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header strip */}
-          <Image
-            source={require("../assets/header_banner.png")}
-            style={styles.headerBanner}
-            resizeMode="cover"
-          />
+          {/* Header strip — native render so it's pixel-perfect */}
+          <View style={styles.headerBanner}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.headerBannerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                PROBATIONARY DRIVER LICENCE
+              </Text>
+              <Text style={styles.headerBannerSub}>Victoria Australia</Text>
+            </View>
+            <View style={styles.headerLogo}>
+              <Text style={styles.headerLogoCheck}>✓</Text>
+              <Text style={styles.headerLogoText}>vicroads</Text>
+            </View>
+          </View>
 
           {/* Photo + QR consent */}
           <View style={styles.greenBlock}>
@@ -1917,9 +1924,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerBanner: {
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").width * (180 / 992) * 0.85,
     backgroundColor: "#E53A2C",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  headerLeft: { flex: 1, marginRight: 12 },
+  headerBannerTitle: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
+  headerBannerSub: {
+    color: "#fff",
+    fontSize: 11,
+    fontStyle: "italic",
+    fontWeight: "500",
+    marginTop: 2,
+    opacity: 0.95,
+  },
+  headerLogo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerLogoCheck: {
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "900",
+    marginRight: 2,
+    transform: [{ skewX: "-10deg" }, { scaleY: 1.05 }],
+    lineHeight: 28,
+  },
+  headerLogoText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "400",
+    fontStyle: "italic",
+    letterSpacing: -0.5,
   },
   headerTitle: {
     color: "#fff",
