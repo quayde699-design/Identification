@@ -226,7 +226,7 @@ function LoginScreen({
     if (loading) return;
     setError("");
     if (digits.length !== 6 || letters.length !== 3) {
-      setError("Wrong Digit or Letter");
+      setError("Incorrect Credentials");
       return;
     }
     setLoading(true);
@@ -241,7 +241,7 @@ function LoginScreen({
     );
     if (!acc) {
       setLoading(false);
-      setError("Wrong Digit or Letter");
+      setError("Incorrect Credentials");
       return;
     }
     if (acc.locked) {
@@ -264,7 +264,7 @@ function LoginScreen({
         onPress={onAdmin}
         testID="admin-button"
       >
-        <Ionicons name="settings-outline" size={20} color="#fff" />
+        <Ionicons name="settings-outline" size={18} color="#fff" />
         <Text style={authStyles.adminBtnText}>Admin</Text>
       </TouchableOpacity>
 
@@ -272,52 +272,80 @@ function LoginScreen({
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={authStyles.center}>
-          <View style={authStyles.logoBig}>
-            <MaterialCommunityIcons name="card-account-details" size={56} color={ORANGE} />
+        <ScrollView
+          contentContainerStyle={authStyles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[authStyles.hero, { marginTop: insets.top + 56 }]}>
+            <View style={authStyles.heroBadge}>
+              <MaterialCommunityIcons name="card-account-details" size={42} color={ORANGE} />
+            </View>
+            <Text style={authStyles.title}>VicRoads Licence</Text>
+            <Text style={authStyles.sub}>Sign in with your codes to view your permit</Text>
           </View>
-          <Text style={authStyles.title}>VicRoads Licence</Text>
-          <Text style={authStyles.sub}>Sign in with your codes</Text>
 
-          <Text style={authStyles.label}>6-digit code</Text>
-          <TextInput
-            style={authStyles.input}
-            value={digits}
-            onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
-            keyboardType="number-pad"
-            maxLength={6}
-            placeholder="000000"
-            placeholderTextColor="#aaa"
-            testID="login-digits"
-          />
-          <Text style={authStyles.label}>3-letter code</Text>
-          <TextInput
-            style={authStyles.input}
-            value={letters}
-            onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
-            autoCapitalize="characters"
-            maxLength={3}
-            placeholder="ABC"
-            placeholderTextColor="#aaa"
-            testID="login-letters"
-          />
+          <View style={authStyles.formCard}>
+            <View style={authStyles.fieldGroup}>
+              <Text style={authStyles.label}>6-digit code</Text>
+              <View style={authStyles.inputWrap}>
+                <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                <TextInput
+                  style={authStyles.input}
+                  value={digits}
+                  onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor="#bdc1c8"
+                  testID="login-digits"
+                />
+              </View>
+            </View>
 
-          <TouchableOpacity
-            style={[authStyles.primaryBtn, loading && { opacity: 0.85 }]}
-            onPress={tryLogin}
-            disabled={loading}
-            testID="login-submit"
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={authStyles.primaryBtnText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
-          {error ? (
-            <Text style={authStyles.errorText} testID="login-error">{error}</Text>
-          ) : null}
-        </View>
+            <View style={authStyles.fieldGroup}>
+              <Text style={authStyles.label}>3-letter code</Text>
+              <View style={authStyles.inputWrap}>
+                <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                <TextInput
+                  style={authStyles.input}
+                  value={letters}
+                  onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
+                  autoCapitalize="characters"
+                  maxLength={3}
+                  placeholder="ABC"
+                  placeholderTextColor="#bdc1c8"
+                  testID="login-letters"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[authStyles.primaryBtn, loading && { opacity: 0.9 }]}
+              onPress={tryLogin}
+              disabled={loading}
+              testID="login-submit"
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={authStyles.primaryBtnText}>Sign in</Text>
+              )}
+            </TouchableOpacity>
+
+            {error ? (
+              <View style={authStyles.errorBox} testID="login-error-box">
+                <Ionicons name="alert-circle" size={18} color="#B42318" />
+                <Text style={authStyles.errorText} testID="login-error">{error}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={authStyles.footer}>
+            <Text style={authStyles.footerText}>Codes are provided by your administrator</Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -335,76 +363,102 @@ function AdminLoginScreen({
   const [letters, setLetters] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={authStyles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={authStyles.topRow}>
         <TouchableOpacity onPress={onBack} style={authStyles.backBtn} testID="admin-back">
-          <Ionicons name="arrow-back" size={26} color={DARK} />
+          <Ionicons name="arrow-back" size={24} color={DARK} />
         </TouchableOpacity>
         <Text style={authStyles.topTitle}>Admin sign-in</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={authStyles.center}>
-          <Ionicons name="shield-checkmark" size={56} color={ORANGE} />
-          <Text style={authStyles.title}>Admin console</Text>
-          <Text style={authStyles.sub}>Enter the admin codes</Text>
+        <ScrollView
+          contentContainerStyle={authStyles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[authStyles.hero, { marginTop: 12 }]}>
+            <View style={authStyles.heroBadge}>
+              <Ionicons name="shield-checkmark" size={42} color={ORANGE} />
+            </View>
+            <Text style={authStyles.title}>Admin console</Text>
+            <Text style={authStyles.sub}>Restricted area. Enter the admin codes to continue</Text>
+          </View>
 
-          <Text style={authStyles.label}>4-digit code</Text>
-          <TextInput
-            style={authStyles.input}
-            value={digits}
-            onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 4))}
-            keyboardType="number-pad"
-            maxLength={4}
-            placeholder="0000"
-            placeholderTextColor="#aaa"
-            testID="admin-digits"
-          />
-          <Text style={authStyles.label}>6-letter code</Text>
-          <TextInput
-            style={authStyles.input}
-            value={letters}
-            onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 6).toUpperCase())}
-            autoCapitalize="characters"
-            maxLength={6}
-            placeholder="ABCDEF"
-            placeholderTextColor="#aaa"
-            testID="admin-letters"
-          />
+          <View style={authStyles.formCard}>
+            <View style={authStyles.fieldGroup}>
+              <Text style={authStyles.label}>4-digit code</Text>
+              <View style={authStyles.inputWrap}>
+                <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                <TextInput
+                  style={authStyles.input}
+                  value={digits}
+                  onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 4))}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  placeholder="0000"
+                  placeholderTextColor="#bdc1c8"
+                  testID="admin-digits"
+                />
+              </View>
+            </View>
+            <View style={authStyles.fieldGroup}>
+              <Text style={authStyles.label}>6-letter code</Text>
+              <View style={authStyles.inputWrap}>
+                <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                <TextInput
+                  style={authStyles.input}
+                  value={letters}
+                  onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 6).toUpperCase())}
+                  autoCapitalize="characters"
+                  maxLength={6}
+                  placeholder="ABCDEF"
+                  placeholderTextColor="#bdc1c8"
+                  testID="admin-letters"
+                />
+              </View>
+            </View>
 
-          <TouchableOpacity
-            style={[authStyles.primaryBtn, loading && { opacity: 0.85 }]}
-            disabled={loading}
-            onPress={() => {
-              if (loading) return;
-              setError("");
-              if (digits === ADMIN_DIGITS && letters.toUpperCase() === ADMIN_LETTERS) {
-                setLoading(true);
-                setTimeout(() => {
-                  onSuccess();
-                  setLoading(false);
-                }, 400);
-              } else {
-                setError("Wrong Digit or Letter");
-              }
-            }}
-            testID="admin-submit"
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={authStyles.primaryBtnText}>Enter admin</Text>
-            )}
-          </TouchableOpacity>
-          {error ? (
-            <Text style={authStyles.errorText} testID="admin-error">{error}</Text>
-          ) : null}
-        </View>
+            <TouchableOpacity
+              style={[authStyles.primaryBtn, loading && { opacity: 0.9 }]}
+              disabled={loading}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (loading) return;
+                setError("");
+                if (digits === ADMIN_DIGITS && letters.toUpperCase() === ADMIN_LETTERS) {
+                  setLoading(true);
+                  setTimeout(() => {
+                    onSuccess();
+                    setLoading(false);
+                  }, 400);
+                } else {
+                  setError("Incorrect Credentials");
+                }
+              }}
+              testID="admin-submit"
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={authStyles.primaryBtnText}>Enter admin</Text>
+              )}
+            </TouchableOpacity>
+
+            {error ? (
+              <View style={authStyles.errorBox} testID="admin-error-box">
+                <Ionicons name="alert-circle" size={18} color="#B42318" />
+                <Text style={authStyles.errorText} testID="admin-error">{error}</Text>
+              </View>
+            ) : null}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -519,12 +573,20 @@ function AdminScreen({
     setDeleteId(null);
   };
 
+  const initials = (n: string) =>
+    n
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0].toUpperCase())
+      .join("");
+
   return (
     <SafeAreaView style={authStyles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={authStyles.topRow}>
         <TouchableOpacity onPress={onBack} style={authStyles.backBtn} testID="admin-exit">
-          <Ionicons name="arrow-back" size={26} color={DARK} />
+          <Ionicons name="arrow-back" size={24} color={DARK} />
         </TouchableOpacity>
         <Text style={authStyles.topTitle}>Admin console</Text>
         <TouchableOpacity
@@ -536,24 +598,53 @@ function AdminScreen({
           style={authStyles.backBtn}
           testID="admin-create-open"
         >
-          <Ionicons name="add" size={28} color={ORANGE} />
+          <View style={adminStyles.addBtn}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={adminStyles.sectionHead}>
+          <Text style={adminStyles.sectionTitle}>Accounts</Text>
+          <View style={adminStyles.countChip}>
+            <Text style={adminStyles.countChipText}>{accounts.length}</Text>
+          </View>
+        </View>
+
         {accounts.length === 0 && (
-          <Text style={[authStyles.hint, { marginTop: 40 }]}>
-            No accounts yet. Tap + to create one.
-          </Text>
+          <View style={adminStyles.emptyWrap}>
+            <View style={adminStyles.emptyIconBubble}>
+              <Ionicons name="people-outline" size={36} color={MUTED} />
+            </View>
+            <Text style={adminStyles.emptyTitle}>No accounts yet</Text>
+            <Text style={adminStyles.emptySub}>Tap the + button above to create your first licence holder.</Text>
+          </View>
         )}
+
         {accounts.map((a) => (
-          <View key={a.id} style={adminStyles.row} testID={`account-${a.id}`}>
-            <View style={{ flex: 1 }}>
-              <Text style={adminStyles.name}>{a.name}</Text>
-              <Text style={adminStyles.codes}>
-                {a.digits}  ·  {a.letters}
-                {a.locked ? "  ·  LOCKED" : ""}
-              </Text>
+          <View key={a.id} style={adminStyles.card} testID={`account-${a.id}`}>
+            <View style={adminStyles.avatar}>
+              <Text style={adminStyles.avatarText}>{initials(a.name) || "?"}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={adminStyles.cardName} numberOfLines={1}>{a.name}</Text>
+              <View style={adminStyles.codeRow}>
+                <View style={adminStyles.codeChip}>
+                  <Text style={adminStyles.codeChipText}>{a.digits}</Text>
+                </View>
+                <View style={adminStyles.codeChip}>
+                  <Text style={adminStyles.codeChipText}>{a.letters}</Text>
+                </View>
+                {a.locked && (
+                  <View style={adminStyles.lockedChip}>
+                    <Text style={adminStyles.lockedChipText}>LOCKED</Text>
+                  </View>
+                )}
+              </View>
             </View>
             <TouchableOpacity
               onPress={() => toggleLock(a.id)}
@@ -566,7 +657,7 @@ function AdminScreen({
               ) : (
                 <Ionicons
                   name={a.locked ? "lock-closed" : "lock-open"}
-                  size={22}
+                  size={20}
                   color={a.locked ? ORANGE : MUTED}
                 />
               )}
@@ -576,7 +667,7 @@ function AdminScreen({
               style={adminStyles.iconBtn}
               testID={`delete-${a.id}`}
             >
-              <Ionicons name="trash-outline" size={22} color="#c0392b" />
+              <Ionicons name="trash-outline" size={20} color="#c0392b" />
             </TouchableOpacity>
           </View>
         ))}
@@ -586,16 +677,20 @@ function AdminScreen({
       <Modal visible={!!deleteId} transparent animationType="fade" onRequestClose={() => setDeleteId(null)}>
         <View style={adminStyles.confirmBackdrop}>
           <View style={adminStyles.confirmCard}>
-            <Text style={adminStyles.confirmTitle}>
-              Are you sure you want to delete this account
+            <View style={adminStyles.confirmIcon}>
+              <Ionicons name="trash" size={28} color="#c0392b" />
+            </View>
+            <Text style={adminStyles.confirmTitle}>Delete account?</Text>
+            <Text style={adminStyles.confirmBody}>
+              This will permanently remove the account and its licence. This cannot be undone.
             </Text>
             <View style={adminStyles.confirmRow}>
               <TouchableOpacity
-                style={[adminStyles.confirmBtn, { backgroundColor: "#e6e8ec" }]}
+                style={[adminStyles.confirmBtn, { backgroundColor: "#F2F4F7" }]}
                 onPress={() => setDeleteId(null)}
                 testID="delete-no"
               >
-                <Text style={[adminStyles.confirmBtnText, { color: DARK }]}>No</Text>
+                <Text style={[adminStyles.confirmBtnText, { color: DARK }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[adminStyles.confirmBtn, { backgroundColor: "#c0392b" }, deleting && { opacity: 0.85 }]}
@@ -606,7 +701,7 @@ function AdminScreen({
                 {deleting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={[adminStyles.confirmBtnText, { color: "#fff" }]}>Confirm</Text>
+                  <Text style={[adminStyles.confirmBtnText, { color: "#fff" }]}>Delete</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -620,59 +715,85 @@ function AdminScreen({
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <View style={authStyles.topRow}>
               <TouchableOpacity onPress={() => setCreateOpen(false)} style={authStyles.backBtn}>
-                <Text style={{ fontSize: 16, color: MUTED }}>Cancel</Text>
+                <Text style={{ fontSize: 15, color: MUTED, fontWeight: "600" }}>Cancel</Text>
               </TouchableOpacity>
               <Text style={authStyles.topTitle}>New account</Text>
               <TouchableOpacity onPress={create} style={authStyles.backBtn} disabled={creating} testID="create-save">
                 {creating ? (
                   <ActivityIndicator size="small" color={ORANGE} />
                 ) : (
-                  <Text style={{ fontSize: 16, color: ORANGE, fontWeight: "700" }}>Save</Text>
+                  <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Save</Text>
                 )}
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20 }}>
-              <Text style={authStyles.label}>Full name</Text>
-              <TextInput
-                style={authStyles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g. Quayde A Burnham"
-                placeholderTextColor="#aaa"
-                testID="create-name"
-              />
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
+              <View style={[authStyles.hero, { paddingTop: 4, paddingBottom: 18 }]}>
+                <View style={authStyles.heroBadge}>
+                  <Ionicons name="person-add" size={36} color={ORANGE} />
+                </View>
+                <Text style={[authStyles.title, { fontSize: 22 }]}>Create account</Text>
+                <Text style={authStyles.sub}>Give a name and login codes for this licence holder</Text>
+              </View>
 
-              <TouchableOpacity
-                style={adminStyles.randomBtn}
-                onPress={randomize}
-                testID="randomize-btn"
-              >
-                <Ionicons name="shuffle" size={18} color="#fff" />
-                <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
-              </TouchableOpacity>
+              <View style={authStyles.formCard}>
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>Full name</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="person-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={[authStyles.input, { letterSpacing: 0, fontWeight: "600" }]}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="e.g. Quayde A Burnham"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-name"
+                    />
+                  </View>
+                </View>
 
-              <Text style={authStyles.label}>6-digit code</Text>
-              <TextInput
-                style={authStyles.input}
-                value={digits}
-                onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
-                keyboardType="number-pad"
-                maxLength={6}
-                placeholder="000000"
-                placeholderTextColor="#aaa"
-                testID="create-digits"
-              />
-              <Text style={authStyles.label}>3-letter code</Text>
-              <TextInput
-                style={authStyles.input}
-                value={letters}
-                onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
-                autoCapitalize="characters"
-                maxLength={3}
-                placeholder="ABC"
-                placeholderTextColor="#aaa"
-                testID="create-letters"
-              />
+                <TouchableOpacity
+                  style={adminStyles.randomBtn}
+                  onPress={randomize}
+                  testID="randomize-btn"
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="shuffle" size={16} color="#fff" />
+                  <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
+                </TouchableOpacity>
+
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>6-digit code</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={authStyles.input}
+                      value={digits}
+                      onChangeText={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="000000"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-digits"
+                    />
+                  </View>
+                </View>
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>3-letter code</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={authStyles.input}
+                      value={letters}
+                      onChangeText={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
+                      autoCapitalize="characters"
+                      maxLength={3}
+                      placeholder="ABC"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-letters"
+                    />
+                  </View>
+                </View>
+              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -1001,12 +1122,12 @@ function LicenceScreen({
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setEditVisible(false)}>
+            <View style={styles.editHeader}>
+              <TouchableOpacity onPress={() => setEditVisible(false)} style={styles.editHeaderBtn}>
                 <Text style={styles.modalCancel}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Edit licence</Text>
-              <TouchableOpacity onPress={saveEdit} disabled={saving} testID="save-edit">
+              <Text style={styles.modalTitle}>Edit details</Text>
+              <TouchableOpacity onPress={saveEdit} disabled={saving} style={styles.editHeaderBtn} testID="save-edit">
                 {saving ? (
                   <ActivityIndicator size="small" color={ORANGE} />
                 ) : (
@@ -1014,72 +1135,99 @@ function LicenceScreen({
                 )}
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-              <View style={{ alignItems: "center", marginBottom: 20 }}>
-                {draft.photoUri ? (
-                  <Image
-                    source={{ uri: draft.photoUri }}
-                    style={{ width: 140, height: 180, borderRadius: 10, backgroundColor: "#eee" }}
-                  />
-                ) : (
-                  <View style={{ width: 140, height: 180, borderRadius: 10, backgroundColor: "#eee", alignItems: "center", justifyContent: "center" }}>
-                    <Ionicons name="person" size={60} color="#aaa" />
-                  </View>
-                )}
+
+            <ScrollView
+              contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Photo card */}
+              <View style={styles.editPhotoCard}>
+                <View style={styles.editPhotoFrame}>
+                  {draft.photoUri ? (
+                    <Image source={{ uri: draft.photoUri }} style={styles.editPhotoImg} />
+                  ) : (
+                    <View style={[styles.editPhotoImg, { alignItems: "center", justifyContent: "center", backgroundColor: "#F2F4F7" }]}>
+                      <Ionicons name="person" size={56} color="#A5ACBA" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.editPhotoTitle}>Profile picture</Text>
+                <Text style={styles.editPhotoSub}>Tap below to upload a new photo</Text>
                 <TouchableOpacity
                   onPress={pickPhoto}
                   disabled={pickingPhoto}
-                  style={{ marginTop: 10, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, minHeight: 40, justifyContent: "center", opacity: pickingPhoto ? 0.85 : 1 }}
+                  style={[styles.editPhotoBtn, pickingPhoto && { opacity: 0.85 }]}
                   testID="pick-photo"
+                  activeOpacity={0.85}
                 >
                   {pickingPhoto ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={{ color: "#fff", fontWeight: "700" }}>Change profile picture</Text>
+                    <>
+                      <Ionicons name="camera" size={16} color="#fff" />
+                      <Text style={styles.editPhotoBtnText}>Change picture</Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </View>
 
-              <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 10 }}>
-                <Text style={styles.editLabel}>Name (locked)</Text>
-                <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{account.name}</Text>
+              {/* Identity section */}
+              <Text style={styles.editSection}>Identity</Text>
+              <View style={styles.editGroup}>
+                <LockedRow label="Name" value={account.name} icon="person-outline" />
+                <View style={styles.editDivider} />
+                <DateField
+                  label="Date of birth"
+                  value={draft.dob}
+                  onPress={() => openDatePicker("dob")}
+                />
+                <View style={styles.editDivider} />
+                <EditField label="Signature name" value={draft.signatureName}
+                  onChange={(v) => setDraft({ ...draft, signatureName: v })} />
               </View>
 
-              <DateField
-                label="Expiry"
-                value={draft.expiry}
-                onPress={() => openDatePicker("expiry")}
-              />
-              <EditField label="Licence type" value={draft.licenceType}
-                onChange={(v) => setDraft({ ...draft, licenceType: v })} />
-              <DateField
-                label="Date of birth"
-                value={draft.dob}
-                onPress={() => openDatePicker("dob")}
-              />
-              <EditField label="Address line 1" value={draft.addressLine1}
-                onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} />
-              <EditField label="Address line 2" value={draft.addressLine2}
-                onChange={(v) => setDraft({ ...draft, addressLine2: v.toUpperCase() })} />
-              <EditField label="Signature name" value={draft.signatureName}
-                onChange={(v) => setDraft({ ...draft, signatureName: v })} />
-              <EditField label="Permit status" value={draft.permitStatus}
-                onChange={(v) => setDraft({ ...draft, permitStatus: v })} />
-              <EditField label="Proficiency" value={draft.proficiency}
-                onChange={(v) => setDraft({ ...draft, proficiency: v })} />
-              <DateField
-                label="Issue date"
-                value={draft.issueDate}
-                onPress={() => openDatePicker("issueDate")}
-              />
-
-              <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 10 }}>
-                <Text style={styles.editLabel}>Permit number (locked)</Text>
-                <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{draft.permitNumber}</Text>
+              {/* Address section */}
+              <Text style={styles.editSection}>Address</Text>
+              <View style={styles.editGroup}>
+                <EditField label="Address line 1" value={draft.addressLine1}
+                  onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })} />
+                <View style={styles.editDivider} />
+                <EditField label="Address line 2" value={draft.addressLine2}
+                  onChange={(v) => setDraft({ ...draft, addressLine2: v.toUpperCase() })} />
               </View>
-              <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#f3f4f6", borderRadius: 10 }}>
-                <Text style={styles.editLabel}>Card number (locked)</Text>
-                <Text style={{ fontSize: 16, color: DARK, fontWeight: "600" }}>{draft.cardNumber}</Text>
+
+              {/* Licence details section */}
+              <Text style={styles.editSection}>Licence</Text>
+              <View style={styles.editGroup}>
+                <EditField label="Licence type" value={draft.licenceType}
+                  onChange={(v) => setDraft({ ...draft, licenceType: v })} />
+                <View style={styles.editDivider} />
+                <EditField label="Permit status" value={draft.permitStatus}
+                  onChange={(v) => setDraft({ ...draft, permitStatus: v })} />
+                <View style={styles.editDivider} />
+                <EditField label="Proficiency" value={draft.proficiency}
+                  onChange={(v) => setDraft({ ...draft, proficiency: v })} />
+                <View style={styles.editDivider} />
+                <DateField
+                  label="Issue date"
+                  value={draft.issueDate}
+                  onPress={() => openDatePicker("issueDate")}
+                />
+                <View style={styles.editDivider} />
+                <DateField
+                  label="Expiry"
+                  value={draft.expiry}
+                  onPress={() => openDatePicker("expiry")}
+                />
+              </View>
+
+              {/* System fields (locked) */}
+              <Text style={styles.editSection}>System</Text>
+              <View style={styles.editGroup}>
+                <LockedRow label="Permit number" value={draft.permitNumber} icon="document-text-outline" />
+                <View style={styles.editDivider} />
+                <LockedRow label="Card number" value={draft.cardNumber} icon="card-outline" />
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -1166,7 +1314,7 @@ function EditField({
   onChange: (v: string) => void;
 }) {
   return (
-    <View style={{ marginBottom: 16 }}>
+    <View style={styles.editRow}>
       <Text style={styles.editLabel}>{label}</Text>
       <TextInput
         value={value}
@@ -1187,11 +1335,32 @@ function DateField({
   onPress: () => void;
 }) {
   return (
-    <View style={{ marginBottom: 16 }}>
+    <View style={styles.editRow}>
       <Text style={styles.editLabel}>{label}</Text>
-      <TouchableOpacity onPress={onPress} style={styles.editInput} testID={`date-${label}`}>
-        <Text style={{ fontSize: 16, color: DARK }}>{value || "Select date"}</Text>
+      <TouchableOpacity onPress={onPress} style={styles.editDateBtn} testID={`date-${label}`} activeOpacity={0.7}>
+        <Text style={styles.editDateText}>{value || "Select date"}</Text>
+        <Ionicons name="calendar-outline" size={18} color={MUTED} />
       </TouchableOpacity>
+    </View>
+  );
+}
+function LockedRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: any;
+}) {
+  return (
+    <View style={styles.editRow}>
+      <Text style={styles.editLabel}>{label}</Text>
+      <View style={styles.editLocked}>
+        <Ionicons name={icon} size={16} color={MUTED} style={{ marginRight: 8 }} />
+        <Text style={styles.editLockedText} numberOfLines={1}>{value || "—"}</Text>
+        <Ionicons name="lock-closed" size={14} color={MUTED} style={{ marginLeft: "auto" }} />
+      </View>
     </View>
   );
 }
@@ -1380,21 +1549,59 @@ function EmptyTab({
 // ---------- Styles ----------
 const authStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flexGrow: 1, paddingBottom: 24 },
+
+  // Top bar (back arrow / title / right action)
   topRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eceef2",
   },
-  topTitle: { fontSize: 18, fontWeight: "700", color: DARK },
-  backBtn: { padding: 8, minWidth: 40, alignItems: "center" },
+  topTitle: { fontSize: 17, fontWeight: "700", color: DARK },
+  backBtn: { padding: 10, minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+
+  // Hero section at top of auth screens
+  hero: {
+    paddingTop: 8,
+    paddingBottom: 28,
+    paddingHorizontal: 28,
+    alignItems: "center",
+  },
+  heroBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: "#FFF1EC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    shadowColor: ORANGE,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: DARK,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  sub: {
+    fontSize: 15,
+    color: MUTED,
+    textAlign: "center",
+    marginTop: 8,
+  },
+
+  // Admin pill (top-left on login)
   adminBtn: {
     position: "absolute",
     left: 16,
-    backgroundColor: DARK,
+    backgroundColor: "#0F1722",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
@@ -1402,89 +1609,240 @@ const authStyles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     zIndex: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   adminBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  logoBig: {
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: DARK,
-    textAlign: "center",
-  },
-  sub: {
-    fontSize: 14,
-    color: MUTED,
-    textAlign: "center",
-    marginTop: 6,
-    marginBottom: 28,
-  },
-  label: { color: MUTED, fontSize: 13, marginBottom: 6, marginTop: 4 },
-  input: {
+
+  // Form card
+  formCard: {
+    marginHorizontal: 22,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 22,
     borderWidth: 1,
-    borderColor: "#e6e8ec",
-    borderRadius: 10,
+    borderColor: "#EEF0F3",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+  },
+
+  // Inputs
+  fieldGroup: { marginBottom: 14 },
+  label: {
+    color: DARK,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    backgroundColor: "#FAFBFC",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    height: 54,
+  },
+  inputWrapFocused: { borderColor: ORANGE, backgroundColor: "#fff" },
+  inputIcon: { marginRight: 10 },
+  input: {
+    flex: 1,
     fontSize: 18,
     color: DARK,
-    backgroundColor: "#fafbfc",
-    letterSpacing: 2,
-    marginBottom: 8,
+    letterSpacing: 4,
+    fontWeight: "700",
+    paddingVertical: 0,
   },
+  inputHint: {
+    fontSize: 12,
+    color: MUTED,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+
+  // Primary CTA
   primaryBtn: {
     backgroundColor: ORANGE,
-    borderRadius: 999,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 18,
+    shadowColor: ORANGE,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  primaryBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+
   hint: { textAlign: "center", color: MUTED, marginTop: 16, fontSize: 13 },
-  errorText: {
-    textAlign: "center",
-    color: "#d32f2f",
-    fontSize: 15,
-    fontWeight: "700",
-    marginTop: 14,
+
+  // Error banner
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FDECEC",
+    borderColor: "#F5C2C7",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 16,
+    alignSelf: "center",
   },
+  errorText: { color: "#B42318", fontSize: 14, fontWeight: "700" },
+
+  // Footer caption (under form)
+  footer: {
+    marginTop: 18,
+    alignItems: "center",
+  },
+  footerText: { color: MUTED, fontSize: 12 },
 });
 
 const adminStyles = StyleSheet.create({
-  row: {
+  screen: { flex: 1, backgroundColor: "#fff" },
+
+  // Section header
+  sectionHead: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 22,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: "#f7f8fa",
-    marginBottom: 14,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
-  name: { fontSize: 20, fontWeight: "800", color: DARK },
-  codes: { color: MUTED, fontSize: 15, marginTop: 4 },
-  iconBtn: { padding: 12, marginLeft: 6 },
+  sectionTitle: { fontSize: 22, fontWeight: "800", color: DARK, letterSpacing: -0.2 },
+  countChip: {
+    backgroundColor: "#F1F2F5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  countChipText: { color: MUTED, fontWeight: "700", fontSize: 12 },
+
+  // Account row card
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FFF1EC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  avatarText: { color: ORANGE, fontWeight: "800", fontSize: 16 },
+  cardName: { fontSize: 16, fontWeight: "800", color: DARK },
+  codeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  codeChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#F2F4F7",
+  },
+  codeChipText: { color: DARK, fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  lockedChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#FEF3F2",
+  },
+  lockedChipText: { color: "#B42318", fontSize: 11, fontWeight: "800", letterSpacing: 0.6 },
+
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F7F8FA",
+    marginLeft: 6,
+  },
+
+  // Empty state
+  emptyWrap: { alignItems: "center", paddingTop: 80, paddingHorizontal: 30 },
+  emptyIconBubble: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: "#F2F4F7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: { color: DARK, fontSize: 18, fontWeight: "800" },
+  emptySub: { color: MUTED, fontSize: 14, marginTop: 6, textAlign: "center" },
+
+  // Randomise pill
   randomBtn: {
     flexDirection: "row",
     alignSelf: "flex-start",
     alignItems: "center",
     gap: 6,
-    backgroundColor: DARK,
+    backgroundColor: "#0F1722",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    marginVertical: 12,
+    marginTop: 6,
+    marginBottom: 14,
   },
   randomBtnText: { color: "#fff", fontWeight: "700" },
+
+  // Add (+) FAB-like
+  addBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: ORANGE,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: ORANGE,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+
+  // Confirm modal
   confirmBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(15,23,34,0.55)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -1493,27 +1851,45 @@ const adminStyles = StyleSheet.create({
     width: "100%",
     maxWidth: 360,
     backgroundColor: "#fff",
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 24,
+    alignItems: "center",
+  },
+  confirmIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FEF3F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
   },
   confirmTitle: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
     color: DARK,
     textAlign: "center",
+    marginBottom: 6,
+  },
+  confirmBody: {
+    fontSize: 14,
+    color: MUTED,
+    textAlign: "center",
     marginBottom: 22,
+    lineHeight: 20,
   },
   confirmRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
+    width: "100%",
   },
   confirmBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 999,
+    borderRadius: 14,
     alignItems: "center",
   },
-  confirmBtnText: { fontWeight: "700", fontSize: 16 },
+  confirmBtnText: { fontWeight: "800", fontSize: 15 },
 });
 
 const styles = StyleSheet.create({
@@ -1699,20 +2075,129 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eceef2",
   },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: DARK },
-  modalCancel: { fontSize: 16, color: MUTED },
-  modalSave: { fontSize: 16, color: ORANGE, fontWeight: "700" },
-  editLabel: { color: MUTED, fontSize: 13, marginBottom: 6 },
-  editInput: {
+  modalTitle: { fontSize: 17, fontWeight: "800", color: DARK },
+  modalCancel: { fontSize: 15, color: MUTED, fontWeight: "600" },
+  modalSave: { fontSize: 15, color: ORANGE, fontWeight: "800" },
+
+  // ----- Modern edit modal -----
+  editHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF0F3",
+    backgroundColor: "#fff",
+  },
+  editHeaderBtn: {
+    minWidth: 60,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editPhotoCard: {
+    alignItems: "center",
+    padding: 22,
+    borderRadius: 22,
+    backgroundColor: "#FAFBFC",
     borderWidth: 1,
-    borderColor: "#e6e8ec",
+    borderColor: "#EEF0F3",
+    marginBottom: 22,
+  },
+  editPhotoFrame: {
+    padding: 5,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  editPhotoImg: {
+    width: 130,
+    height: 170,
     borderRadius: 10,
+    backgroundColor: "#eee",
+  },
+  editPhotoTitle: {
+    marginTop: 14,
+    fontSize: 16,
+    fontWeight: "800",
+    color: DARK,
+  },
+  editPhotoSub: {
+    fontSize: 13,
+    color: MUTED,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  editPhotoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: ORANGE,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    minHeight: 40,
+    shadowColor: ORANGE,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  editPhotoBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  editSection: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: MUTED,
+    letterSpacing: 1.2,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  editGroup: {
+    borderRadius: 16,
+    backgroundColor: "#FAFBFC",
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 6,
+    marginBottom: 22,
+  },
+  editDivider: {
+    height: 1,
+    backgroundColor: "#EEF0F3",
+    marginVertical: 2,
+  },
+  editRow: { paddingVertical: 10 },
+  editLabel: { color: MUTED, fontSize: 11, fontWeight: "700", marginBottom: 4, letterSpacing: 0.6 },
+  editInput: {
     fontSize: 16,
     color: DARK,
-    backgroundColor: "#fafbfc",
+    fontWeight: "600",
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+    backgroundColor: "transparent",
   },
+  editDateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  editDateText: { fontSize: 16, color: DARK, fontWeight: "600" },
+  editLocked: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  editLockedText: { fontSize: 16, color: DARK, fontWeight: "600", flexShrink: 1 },
   dateBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
