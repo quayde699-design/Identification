@@ -12,6 +12,7 @@ import {
   StatusBar,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -218,14 +219,17 @@ function LoginScreen({
   const [digits, setDigits] = useState("");
   const [letters, setLetters] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
   const tryLogin = async () => {
+    if (loading) return;
     setError("");
     if (digits.length !== 6 || letters.length !== 3) {
       setError("Wrong Digit or Letter");
       return;
     }
+    setLoading(true);
     // Fetch latest from server so newly-created accounts are seen instantly
     let latest: Account[] = accounts;
     try {
@@ -236,14 +240,20 @@ function LoginScreen({
       (a) => a.digits === digits && a.letters.toUpperCase() === letters.toUpperCase()
     );
     if (!acc) {
+      setLoading(false);
       setError("Wrong Digit or Letter");
       return;
     }
     if (acc.locked) {
+      setLoading(false);
       setError("Account Locked");
       return;
     }
-    onLogin(acc);
+    // Small delay so the spinner is visible while parent transitions
+    setTimeout(() => {
+      onLogin(acc);
+      setLoading(false);
+    }, 400);
   };
 
   return (
@@ -292,8 +302,17 @@ function LoginScreen({
             testID="login-letters"
           />
 
-          <TouchableOpacity style={authStyles.primaryBtn} onPress={tryLogin} testID="login-submit">
-            <Text style={authStyles.primaryBtnText}>Sign in</Text>
+          <TouchableOpacity
+            style={[authStyles.primaryBtn, loading && { opacity: 0.85 }]}
+            onPress={tryLogin}
+            disabled={loading}
+            testID="login-submit"
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={authStyles.primaryBtnText}>Sign in</Text>
+            )}
           </TouchableOpacity>
           {error ? (
             <Text style={authStyles.errorText} testID="login-error">{error}</Text>
@@ -1505,7 +1524,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
   },
-  tabBtnActive: { backgroundColor: DARK },
+  tabBtnActive: { backgroundColor: "#6b7280" },
   tabText: { color: MUTED, fontWeight: "600", fontSize: 15 },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
