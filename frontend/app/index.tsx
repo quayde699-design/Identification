@@ -923,7 +923,7 @@ function LicenceScreen({
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header strip — native render so it's pixel-perfect */}
+          {/* Header strip — native text + real cropped logo */}
           <View style={styles.headerBanner}>
             <View style={styles.headerLeft}>
               <Text style={styles.headerBannerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
@@ -931,10 +931,11 @@ function LicenceScreen({
               </Text>
               <Text style={styles.headerBannerSub}>Victoria Australia</Text>
             </View>
-            <View style={styles.headerLogo}>
-              <Text style={styles.headerLogoCheck}>✓</Text>
-              <Text style={styles.headerLogoText}>vicroads</Text>
-            </View>
+            <Image
+              source={require("../assets/vicroads_logo.png")}
+              style={styles.headerLogoImg}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Photo + QR consent */}
@@ -1946,24 +1947,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
     opacity: 0.95,
   },
-  headerLogo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerLogoCheck: {
-    color: "#fff",
-    fontSize: 26,
-    fontWeight: "900",
-    marginRight: 2,
-    transform: [{ skewX: "-10deg" }, { scaleY: 1.05 }],
-    lineHeight: 28,
-  },
-  headerLogoText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "400",
-    fontStyle: "italic",
-    letterSpacing: -0.5,
+  headerLogoImg: {
+    width: 100,
+    height: 100 / 2.59,
   },
   headerTitle: {
     color: "#fff",
