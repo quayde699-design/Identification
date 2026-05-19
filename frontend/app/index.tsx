@@ -1918,7 +1918,7 @@ const styles = StyleSheet.create({
   },
   headerBanner: {
     width: Dimensions.get("window").width,
-    height: Dimensions.get("window").width * (180 / 992) * 0.7,
+    height: Dimensions.get("window").width * (180 / 992) * 0.85,
     backgroundColor: "#E53A2C",
   },
   headerTitle: {
