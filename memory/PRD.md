@@ -1,52 +1,31 @@
-# Product Requirements Document — VicRoads Probationary Licence Wallet
+# FID — Probationary Licence Wallet
 
 ## Original Problem Statement
-> Build me this github app — https://github.com/quayde699-design/Identification
+Remove the payment screen when creating an account.
+Source repo: https://github.com/quayde699-design/Identification
 
-User asked us to clone and run the existing Expo + FastAPI app from the provided GitHub repo.
+## App Overview
+Expo (React Native + web) app for issuing/holding Victorian probationary driver licence cards. Admin console creates accounts (name + 6-digit + 3-letter codes); users sign in with their codes to view their licence.
 
-## Goal
-A single-screen Expo app (mobile + web) that mimics a Victorian Probationary Driver Licence in a digital wallet style, backed by a FastAPI + MongoDB API for account/licence persistence, with a hidden Admin console for managing licence holders.
+## Tech Stack
+- Frontend: Expo Router (React Native Web), TypeScript, app/index.tsx
+- Backend: FastAPI + Motor (MongoDB), /api prefix
+- DB: MongoDB (collections: accounts, support_requests, settings)
 
-## Architecture
-- **Frontend**: Expo Router (single screen `/app/index.tsx`) — TypeScript, React Native + react-native-web. Served via `expo start --web --port 3000`.
-- **Backend**: FastAPI (`/app/backend/server.py`) on port 8001, MongoDB via Motor. Collection: `accounts` in DB `vicroads_licence`.
-- **Routing**: All backend endpoints prefixed with `/api`; Kubernetes ingress maps `/api/*` to 8001 and everything else to 3000.
+## Changes Implemented (Jan 2026)
+- Removed the 2-step create-account flow (details → payment). Admin now creates an account with a single details screen (name + codes) and a "Create account" button.
+- Removed state/UI for product selection, discount chips, payment method chips, live totals, and `goToPaymentStep` / `selectedProduct` / `effectiveDiscountPercent` helpers from the create modal.
+- Account creation no longer sends a receipt; backend stores `receipt: null`. Existing receipt viewer & "Manage prices" admin tool are left untouched (they only act on existing accounts/pricing settings, not signup).
+- Auto-displayed receipt modal after successful creation is removed.
+- Installed Expo dependencies (yarn install) and removed stale CRA `public/index.html` so Expo Router renders properly via `app/+html.tsx`.
 
-## User Personas
-1. **Licence holder (end-user)** — Receives a 6-digit + 3-letter code from admin, signs in to view their probationary licence card, can edit personal details and reveal a QR code.
-2. **Administrator** — Uses a hardcoded admin code (4095 / QUAYDE) to access the admin console, create new licence holders, lock accounts, and delete them.
+## Verified
+- `POST /api/accounts` with no `receipt` succeeds (returns `receipt: null`).
+- UI smoke test: admin login → "+" → fill name/digits/letters → "Create account" → account appears in list, no payment screen, no receipt popup.
 
-## Core Requirements (static)
-- VicRoads-styled probationary licence card layout (orange header, photo + QR consent block, tabs: License / Identity / Age, full details, barcode).
-- 6-digit + 3-letter code authentication per licence holder.
-- Admin console with create/lock/unlock/delete actions and randomize-codes helper.
-- Editable licence details (DOB, address, signature, dates, photo via expo-image-picker) persisted via the backend.
-- QR reveal modal with QR generated from licence data.
-- Data persisted server-side (MongoDB) — admin changes are visible across devices.
+## Admin Credentials (existing in code)
+- 4-digit: `4095`
+- 6-letter: `QUAYDE`
 
-## What's Been Implemented (May 19, 2026)
-- Cloned existing repo into `/app`, installed Python deps (`pip install -r requirements.txt`) and JS deps (`yarn install`).
-- Created `/app/backend/.env` (`MONGO_URL`, `DB_NAME=vicroads_licence`, `CORS_ORIGINS=*`).
-- Created `/app/frontend/.env` (`EXPO_PUBLIC_BACKEND_URL=<preview-domain>`).
-- Set Expo to bind to web on port 3000 (`"start": "expo start --web --port 3000"` in `package.json`).
-- Copied `assets/images/splash-image.png` → `splash-icon.png` to satisfy `app.json` splash config.
-- Backend and frontend both running under supervisor.
-- Verified end-to-end: backend pytest 7/7 pass, Playwright E2E (admin login → create account → user login → view card → lock/unlock → delete) pass.
-
-## Iteration 2 — User-Requested Tweaks (May 19, 2026)
-- **P badge** → bright red (`#E10600`), 26×26 square, `borderRadius: 0` (both on Proficiency row and Licence-type row).
-- **Read-only Licence-type / Permit-status / Proficiency** → swapped `EditField` for `LockedRow` with lock icons in the edit-details modal. Users can no longer change "Car", "Current" or "Probationary".
-- **Date picker confirm** → WheelColumn now commits value live during scroll, so tapping **Done** always saves what the user currently sees. Done also issues an immediate PUT to the backend.
-- **Cross-device sync** → added a 4-second polling loop in the root `Index` component that refetches `/api/accounts`. New accounts created on one preview now appear on others, and edits to a licence propagate to every device viewing the same account within ~4s, without manual refresh.
-- All changes regression-tested: 100% backend (7/7 pytest), 100% frontend (Playwright two-context cross-device sync verified).
-
-## Backlog / Future Improvements (P1–P2)
-- (P2) Migrate deprecated `shadow*` and `props.pointerEvents` to `boxShadow` / `style.pointerEvents` to silence RN-web warnings.
-- (P2) Enforce duplicate `(digits, letters)` uniqueness on PUT, not only POST. Add a compound MongoDB unique index.
-- (P2) Switch FastAPI `on_event` startup/shutdown handlers to the modern `lifespan` API.
-- (P2) Split the ~2260-line `index.tsx` into per-screen modules (`LoginScreen`, `AdminScreen`, `LicenceScreen`, styles).
-- (P1) Move admin credentials out of frontend bundle into a server-side admin login endpoint (currently `4095/QUAYDE` is in the JS bundle).
-
-## Next Action Items
-- None blocking — wallet is fully functional. Ready for user review.
+## Backlog / Future
+- Optional: also remove the now-orphan "Manage prices" admin button and existing-account receipt button (`receipt-{id}`) since there is no longer a payment flow that creates receipts. Currently kept as-is per minimal-change scope.

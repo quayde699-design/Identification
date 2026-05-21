@@ -798,15 +798,9 @@ function AdminScreen({
   const [deleting, setDeleting] = useState(false);
   const [lockingId, setLockingId] = useState<string | null>(null);
 
-  // ----- Create flow: step machine + receipt builder state -----
-  type CreateStep = "details" | "payment";
-  const [createStep, setCreateStep] = useState<CreateStep>("details");
+  // ----- Create flow state -----
   const [createError, setCreateError] = useState("");
   const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState<string>("base");
-  const [discountChoice, setDiscountChoice] = useState<"none" | "5" | "10" | "15" | "custom">("none");
-  const [customDiscount, setCustomDiscount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card" | "EFTPOS" | "Bank Transfer">("Cash");
 
   // Pricing-manager modal (admin can change product prices here)
   const [pricesOpen, setPricesOpen] = useState(false);
@@ -823,50 +817,19 @@ function AdminScreen({
       if (r.ok) {
         const data = await r.json();
         setProducts(data);
-        if (!data.find((p: any) => p.id === selectedProductId)) {
-          setSelectedProductId(data[0]?.id || "base");
-        }
       }
     } catch {}
-  }, [selectedProductId]);
+  }, []);
 
   React.useEffect(() => {
     loadProducts();
   }, [loadProducts]);
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
-
   const resetCreateForm = () => {
     setName("");
     setDigits("");
     setLetters("");
-    setCreateStep("details");
     setCreateError("");
-    setSelectedProductId(products[0]?.id || "base");
-    setDiscountChoice("none");
-    setCustomDiscount("");
-    setPaymentMethod("Cash");
-  };
-
-  const effectiveDiscountPercent = (): number => {
-    if (discountChoice === "5") return 5;
-    if (discountChoice === "10") return 10;
-    if (discountChoice === "15") return 15;
-    if (discountChoice === "custom") {
-      const n = parseFloat(customDiscount || "0");
-      return isNaN(n) ? 0 : Math.max(0, Math.min(100, n));
-    }
-    return 0;
-  };
-
-  const unitPrice = selectedProduct?.price || 0;
-  const subtotalAmt = unitPrice; // qty fixed at 1
-  const discountAmt = (subtotalAmt * effectiveDiscountPercent()) / 100;
-  const totalAmt = Math.max(0, subtotalAmt - discountAmt);
-
-  const fmtMoney = (v: number) => {
-    const sign = v < 0 ? "-" : "";
-    return `${sign}$${Math.abs(v).toFixed(2)}`;
   };
   const [supportRequests, setSupportRequests] = useState<
     { id: string; reason: string; channel: string; createdAt: string; seen: boolean }[]
@@ -923,7 +886,8 @@ function AdminScreen({
     setLetters(randomLetters(3));
   };
 
-  const goToPaymentStep = () => {
+  const create = async () => {
+    if (creating) return;
     setCreateError("");
     if (!name.trim()) {
       setCreateError("Enter a name for the account.");
@@ -933,25 +897,8 @@ function AdminScreen({
       setCreateError("Need a 6-digit code and 3-letter code.");
       return;
     }
-    setCreateStep("payment");
-  };
-
-  const create = async () => {
-    if (creating) return;
-    if (!selectedProduct) {
-      setCreateError("Pick a product first.");
-      return;
-    }
-    setCreateError("");
     setCreating(true);
     try {
-      const receipt = {
-        description: selectedProduct.name,
-        qty: 1,
-        unitPrice: selectedProduct.price,
-        discountPercent: effectiveDiscountPercent(),
-        paymentMethod,
-      };
       const res = await fetch(`${API_BASE}/accounts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -974,7 +921,6 @@ function AdminScreen({
             photoUri: "",
             bannerLogoUri: "",
           },
-          receipt,
         }),
       });
       if (res.status === 409) {
@@ -985,12 +931,9 @@ function AdminScreen({
         setCreateError("Could not create account. Please try again.");
         return;
       }
-      const newAccount: Account = await res.json();
       await onRefresh();
       setCreateOpen(false);
       resetCreateForm();
-      // Show the receipt right after creation
-      setReceiptAccount(newAccount);
     } catch (e) {
       setCreateError("Could not reach the server. Check your connection.");
     } finally {
@@ -1271,7 +1214,7 @@ function AdminScreen({
         </View>
       </Modal>
 
-      {/* Create modal — 2-step (details -> payment) */}
+      {/* Create modal — single step (details) */}
       <Modal
         visible={createOpen}
         animationType="slide"
@@ -1285,296 +1228,130 @@ function AdminScreen({
             <View style={authStyles.topRow}>
               <TouchableOpacity
                 onPress={() => {
-                  if (createStep === "payment") {
-                    setCreateStep("details");
-                    setCreateError("");
-                  } else {
-                    setCreateOpen(false);
-                    resetCreateForm();
-                  }
+                  setCreateOpen(false);
+                  resetCreateForm();
                 }}
                 style={authStyles.backBtn}
                 testID="create-back"
               >
                 <Text style={{ fontSize: 15, color: MUTED, fontWeight: "600" }}>
-                  {createStep === "payment" ? "Back" : "Cancel"}
+                  Cancel
                 </Text>
               </TouchableOpacity>
-              <Text style={authStyles.topTitle}>
-                {createStep === "details" ? "New account" : "Payment"}
-              </Text>
-              {createStep === "details" ? (
-                <TouchableOpacity
-                  onPress={goToPaymentStep}
-                  style={authStyles.backBtn}
-                  testID="create-next"
-                >
-                  <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Next</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={create}
-                  style={authStyles.backBtn}
-                  disabled={creating}
-                  testID="create-save"
-                >
-                  {creating ? (
-                    <ActivityIndicator size="small" color={ORANGE} />
-                  ) : (
-                    <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Create</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              <Text style={authStyles.topTitle}>New account</Text>
+              <TouchableOpacity
+                onPress={create}
+                style={authStyles.backBtn}
+                disabled={creating}
+                testID="create-save"
+              >
+                {creating ? (
+                  <ActivityIndicator size="small" color={ORANGE} />
+                ) : (
+                  <Text style={{ fontSize: 15, color: ORANGE, fontWeight: "800" }}>Create</Text>
+                )}
+              </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
               <View style={[authStyles.hero, { paddingTop: 4, paddingBottom: 18 }]}>
                 <View style={authStyles.heroBadge}>
-                  <Ionicons
-                    name={createStep === "details" ? "person-add" : "card-outline"}
-                    size={32}
-                    color={ORANGE}
-                  />
+                  <Ionicons name="person-add" size={32} color={ORANGE} />
                 </View>
-                <Text style={[authStyles.title, { fontSize: 22 }]}>
-                  {createStep === "details" ? "Create account" : "Payment & receipt"}
-                </Text>
+                <Text style={[authStyles.title, { fontSize: 22 }]}>Create account</Text>
                 <Text style={authStyles.sub}>
-                  {createStep === "details"
-                    ? "Give a name and login codes for this licence holder"
-                    : "Set the price, apply a discount and pick how they paid"}
+                  Give a name and login codes for this licence holder
                 </Text>
               </View>
 
-              {createStep === "details" ? (
-                <View style={authStyles.formCard}>
-                  <View style={authStyles.fieldGroup}>
-                    <Text style={authStyles.label}>Full name</Text>
-                    <View style={authStyles.inputWrap}>
-                      <Ionicons name="person-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                      <TextInput
-                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "600" }]}
-                        value={name}
-                        onChangeText={(v) => {
-                          setName(v);
-                          if (createError) setCreateError("");
-                        }}
-                        placeholder="e.g. Quayde A Burnham"
-                        placeholderTextColor="#bdc1c8"
-                        testID="create-name"
-                      />
-                    </View>
+              <View style={authStyles.formCard}>
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>Full name</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="person-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={[authStyles.input, { letterSpacing: 0, fontWeight: "600" }]}
+                      value={name}
+                      onChangeText={(v) => {
+                        setName(v);
+                        if (createError) setCreateError("");
+                      }}
+                      placeholder="e.g. Quayde A Burnham"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-name"
+                    />
                   </View>
-
-                  <TouchableOpacity
-                    style={adminStyles.randomBtn}
-                    onPress={randomize}
-                    testID="randomize-btn"
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="shuffle" size={16} color="#fff" />
-                    <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
-                  </TouchableOpacity>
-
-                  <View style={authStyles.fieldGroup}>
-                    <Text style={authStyles.label}>6-digit code</Text>
-                    <View style={authStyles.inputWrap}>
-                      <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                      <TextInput
-                        style={authStyles.input}
-                        value={digits}
-                        onChangeText={(v) => {
-                          setDigits(v.replace(/\D/g, "").slice(0, 6));
-                          if (createError) setCreateError("");
-                        }}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        placeholder="000000"
-                        placeholderTextColor="#bdc1c8"
-                        testID="create-digits"
-                      />
-                    </View>
-                  </View>
-                  <View style={authStyles.fieldGroup}>
-                    <Text style={authStyles.label}>3-letter code</Text>
-                    <View style={authStyles.inputWrap}>
-                      <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                      <TextInput
-                        style={authStyles.input}
-                        value={letters}
-                        onChangeText={(v) => {
-                          setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase());
-                          if (createError) setCreateError("");
-                        }}
-                        autoCapitalize="characters"
-                        maxLength={3}
-                        placeholder="ABC"
-                        placeholderTextColor="#bdc1c8"
-                        testID="create-letters"
-                      />
-                    </View>
-                  </View>
-
-                  {createError ? (
-                    <View style={authStyles.errorBox}>
-                      <Ionicons name="alert-circle" size={18} color="#B42318" />
-                      <Text style={authStyles.errorText}>{createError}</Text>
-                    </View>
-                  ) : null}
                 </View>
-              ) : (
-                <View style={authStyles.formCard}>
-                  {/* Product options */}
-                  <Text style={authStyles.label}>Choose a product</Text>
-                  <View style={{ gap: 10, marginTop: 4, marginBottom: 6 }}>
-                    {products.map((p) => {
-                      const active = p.id === selectedProductId;
-                      return (
-                        <TouchableOpacity
-                          key={p.id}
-                          onPress={() => setSelectedProductId(p.id)}
-                          activeOpacity={0.85}
-                          style={[
-                            adminStyles.productCard,
-                            active && adminStyles.productCardActive,
-                          ]}
-                          testID={`product-${p.id}`}
-                        >
-                          <View style={[
-                            adminStyles.productRadio,
-                            active && adminStyles.productRadioActive,
-                          ]}>
-                            {active && <View style={adminStyles.productRadioDot} />}
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[
-                              adminStyles.productName,
-                              active && { color: "#fff" },
-                            ]}>
-                              {p.name}
-                            </Text>
-                          </View>
-                          <Text style={[
-                            adminStyles.productPrice,
-                            active && { color: "#fff" },
-                          ]}>
-                            {fmtMoney(p.price)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
 
-                  {/* Discount chips */}
-                  <Text style={[authStyles.label, { marginTop: 18 }]}>Discount</Text>
-                  <View style={adminStyles.chipRow}>
-                    {(["none", "5", "10", "15", "custom"] as const).map((opt) => {
-                      const active = discountChoice === opt;
-                      const label =
-                        opt === "none" ? "None" :
-                        opt === "custom" ? "Custom" :
-                        `-${opt}%`;
-                      return (
-                        <TouchableOpacity
-                          key={opt}
-                          onPress={() => setDiscountChoice(opt)}
-                          style={[
-                            adminStyles.chip,
-                            active && adminStyles.chipActive,
-                          ]}
-                          testID={`discount-${opt}`}
-                        >
-                          <Text style={[
-                            adminStyles.chipText,
-                            active && adminStyles.chipTextActive,
-                          ]}>{label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                <TouchableOpacity
+                  style={adminStyles.randomBtn}
+                  onPress={randomize}
+                  testID="randomize-btn"
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="shuffle" size={16} color="#fff" />
+                  <Text style={adminStyles.randomBtnText}>Randomize codes</Text>
+                </TouchableOpacity>
+
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>6-digit code</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="keypad-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={authStyles.input}
+                      value={digits}
+                      onChangeText={(v) => {
+                        setDigits(v.replace(/\D/g, "").slice(0, 6));
+                        if (createError) setCreateError("");
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="000000"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-digits"
+                    />
                   </View>
-                  {discountChoice === "custom" && (
-                    <View style={[authStyles.inputWrap, { marginTop: 10 }]}>
-                      <Ionicons name="pricetags-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
-                      <TextInput
-                        style={[authStyles.input, { letterSpacing: 0, fontWeight: "700" }]}
-                        value={customDiscount}
-                        onChangeText={(v) => setCustomDiscount(v.replace(/[^0-9.]/g, "").slice(0, 5))}
-                        keyboardType="decimal-pad"
-                        placeholder="Discount %"
-                        placeholderTextColor="#bdc1c8"
-                        testID="custom-discount"
-                      />
-                      <Text style={{ color: MUTED, fontWeight: "700", marginRight: 4 }}>%</Text>
-                    </View>
+                </View>
+                <View style={authStyles.fieldGroup}>
+                  <Text style={authStyles.label}>3-letter code</Text>
+                  <View style={authStyles.inputWrap}>
+                    <Ionicons name="text-outline" size={18} color={MUTED} style={authStyles.inputIcon} />
+                    <TextInput
+                      style={authStyles.input}
+                      value={letters}
+                      onChangeText={(v) => {
+                        setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase());
+                        if (createError) setCreateError("");
+                      }}
+                      autoCapitalize="characters"
+                      maxLength={3}
+                      placeholder="ABC"
+                      placeholderTextColor="#bdc1c8"
+                      testID="create-letters"
+                    />
+                  </View>
+                </View>
+
+                {createError ? (
+                  <View style={authStyles.errorBox}>
+                    <Ionicons name="alert-circle" size={18} color="#B42318" />
+                    <Text style={authStyles.errorText}>{createError}</Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[authStyles.primaryBtn, { marginTop: 18 }, creating && { opacity: 0.9 }]}
+                  onPress={create}
+                  disabled={creating}
+                  testID="create-submit"
+                  activeOpacity={0.85}
+                >
+                  {creating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={authStyles.primaryBtnText}>Create account</Text>
                   )}
-
-                  {/* Payment method chips */}
-                  <Text style={[authStyles.label, { marginTop: 18 }]}>Payment method</Text>
-                  <View style={adminStyles.chipRow}>
-                    {(["Cash", "Card", "EFTPOS", "Bank Transfer"] as const).map((m) => {
-                      const active = paymentMethod === m;
-                      return (
-                        <TouchableOpacity
-                          key={m}
-                          onPress={() => setPaymentMethod(m)}
-                          style={[
-                            adminStyles.chip,
-                            active && adminStyles.chipActive,
-                          ]}
-                          testID={`pay-${m}`}
-                        >
-                          <Text style={[
-                            adminStyles.chipText,
-                            active && adminStyles.chipTextActive,
-                          ]}>{m}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Live totals */}
-                  <View style={adminStyles.totalsBox}>
-                    <View style={adminStyles.totalsRow}>
-                      <Text style={adminStyles.totalsLabel}>Subtotal</Text>
-                      <Text style={adminStyles.totalsVal}>{fmtMoney(subtotalAmt)}</Text>
-                    </View>
-                    {effectiveDiscountPercent() > 0 && (
-                      <View style={adminStyles.totalsRow}>
-                        <Text style={adminStyles.totalsLabel}>
-                          Discount ({effectiveDiscountPercent()}%)
-                        </Text>
-                        <Text style={[adminStyles.totalsVal, { color: "#1f9d55" }]}>
-                          -{fmtMoney(discountAmt)}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={[adminStyles.totalsRow, { marginTop: 6 }]}>
-                      <Text style={adminStyles.totalsLabelBig}>Total</Text>
-                      <Text style={adminStyles.totalsValBig}>{fmtMoney(totalAmt)}</Text>
-                    </View>
-                  </View>
-
-                  {createError ? (
-                    <View style={authStyles.errorBox}>
-                      <Ionicons name="alert-circle" size={18} color="#B42318" />
-                      <Text style={authStyles.errorText}>{createError}</Text>
-                    </View>
-                  ) : null}
-
-                  <TouchableOpacity
-                    style={[authStyles.primaryBtn, { marginTop: 18 }, creating && { opacity: 0.9 }]}
-                    onPress={create}
-                    disabled={creating}
-                    testID="create-submit"
-                    activeOpacity={0.85}
-                  >
-                    {creating ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={authStyles.primaryBtnText}>Create account</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
