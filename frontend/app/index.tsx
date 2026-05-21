@@ -2854,6 +2854,7 @@ const authStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 8,
     paddingVertical: 10,
+    marginTop: 24,
   },
   topTitle: { fontSize: 17, fontWeight: "700", color: DARK },
   backBtn: { padding: 10, minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
