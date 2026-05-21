@@ -18,6 +18,8 @@ Expo (React Native + web) app for issuing/holding Victorian probationary driver 
 - Account creation no longer sends a receipt; backend stores `receipt: null`. Existing receipt viewer & "Manage prices" admin tool are left untouched (they only act on existing accounts/pricing settings, not signup).
 - Auto-displayed receipt modal after successful creation is removed.
 - Installed Expo dependencies (yarn install) and removed stale CRA `public/index.html` so Expo Router renders properly via `app/+html.tsx`.
+- **User-facing licence screen is now read-only**: the "Reveal QR code" button no longer opens the edit modal — it is disabled and does nothing.
+- **New admin "Edit account" button** (pencil icon per row) opens a full-feature `AdminEditModal` that lets the admin change profile picture, banner logo, full name, 6-digit + 3-letter sign-in codes (PINs), date of birth, signature, address lines, licence type, permit status, proficiency, issue date, expiry, permit number, and card number. Saves via `PUT /api/accounts/{id}` so changes appear on the user's licence next time they sign in.
 
 ## Verified
 - `POST /api/accounts` with no `receipt` succeeds (returns `receipt: null`).

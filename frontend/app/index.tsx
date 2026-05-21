@@ -811,6 +811,9 @@ function AdminScreen({
   // Receipt viewer (post-creation + for existing accounts)
   const [receiptAccount, setReceiptAccount] = useState<Account | null>(null);
 
+  // Admin edit-account modal
+  const [editAccount, setEditAccount] = useState<Account | null>(null);
+
   const loadProducts = React.useCallback(async () => {
     try {
       const r = await fetch(`${API_BASE}/products`);
@@ -1082,6 +1085,13 @@ function AdminScreen({
                   color={a.locked ? ORANGE : MUTED}
                 />
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setEditAccount(a)}
+              style={adminStyles.iconBtn}
+              testID={`edit-${a.id}`}
+            >
+              <Ionicons name="create-outline" size={20} color={ORANGE} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setReceiptAccount(a)}
@@ -1361,6 +1371,17 @@ function AdminScreen({
       <ReceiptModal
         account={receiptAccount}
         onClose={() => setReceiptAccount(null)}
+      />
+
+      {/* Admin edit account modal */}
+      <AdminEditModal
+        account={editAccount}
+        accounts={accounts}
+        onClose={() => setEditAccount(null)}
+        onSaved={async () => {
+          await onRefresh();
+          setEditAccount(null);
+        }}
       />
 
       {/* Pricing manager modal */}
@@ -1817,8 +1838,8 @@ function LicenceScreen({
               <Text style={styles.qrPrompt}>Do you consent to share your information?</Text>
               <TouchableOpacity
                 style={[styles.qrButton, isReadOnly && { backgroundColor: "#6b7280" }]}
-                onPress={openEdit}
-                disabled={isReadOnly}
+                onPress={() => { /* disabled — details can only be edited from the admin console */ }}
+                disabled
                 testID="reveal-qr"
               >
                 {isReadOnly ? (
@@ -2189,6 +2210,383 @@ function LicenceScreen({
     </View>
   );
 } 
+
+// ---------- Admin: edit account modal ----------
+function AdminEditModal({
+  account,
+  accounts,
+  onClose,
+  onSaved,
+}: {
+  account: Account | null;
+  accounts: Account[];
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [digits, setDigits] = useState("");
+  const [letters, setLetters] = useState("");
+  const [draft, setDraft] = useState<Licence>(DEFAULT_LICENCE);
+  const [datePickerField, setDatePickerField] = useState<null | "dob" | "expiry" | "issueDate">(null);
+  const [dateBackup, setDateBackup] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
+  const [pickingBannerLogo, setPickingBannerLogo] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (account) {
+      setName(account.name);
+      setDigits(account.digits);
+      setLetters(account.letters);
+      setDraft(account.licence);
+      setError("");
+    }
+  }, [account?.id]);
+
+  if (!account) return null;
+
+  const openDatePicker = (field: "dob" | "expiry" | "issueDate") => {
+    setDateBackup(draft[field]);
+    setDatePickerField(field);
+  };
+  const cancelDatePicker = () => {
+    if (datePickerField) {
+      setDraft({ ...draft, [datePickerField]: dateBackup });
+    }
+    setDatePickerField(null);
+  };
+
+  const parseDate = (s: string): Date => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date(2008, 0, 1) : d;
+  };
+  const formatDate = (d: Date) => {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const pickImage = async (
+    field: "photoUri" | "bannerLogoUri",
+    setBusy: (v: boolean) => void,
+    aspect?: [number, number],
+  ) => {
+    setBusy(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission needed", "Please allow photo access to change this image.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect,
+        quality: 0.7,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const a = result.assets[0];
+        const uri = a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
+        setDraft((prev) => ({ ...prev, [field]: uri }));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    if (saving) return;
+    setError("");
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Name is required.");
+      return;
+    }
+    if (digits.length !== 6) {
+      setError("6-digit code must be 6 digits.");
+      return;
+    }
+    if (letters.length !== 3) {
+      setError("3-letter code must be 3 letters.");
+      return;
+    }
+    // Prevent collisions with other accounts' codes
+    const codeUpper = letters.toUpperCase();
+    const conflict = accounts.find(
+      (a) => a.id !== account.id && a.digits === digits && a.letters === codeUpper,
+    );
+    if (conflict) {
+      setError("Those codes are already used by another account.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/accounts/${account.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          digits,
+          letters: codeUpper,
+          licence: draft,
+        }),
+      });
+      if (!res.ok) {
+        setError("Could not save changes. Please try again.");
+        return;
+      }
+      await onSaved();
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.editHeader}>
+            <TouchableOpacity onPress={onClose} style={styles.editHeaderBtn} testID="admin-edit-cancel">
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit account</Text>
+            <TouchableOpacity onPress={save} disabled={saving} style={styles.editHeaderBtn} testID="admin-edit-save">
+              {saving ? (
+                <ActivityIndicator size="small" color={ORANGE} />
+              ) : (
+                <Text style={styles.modalSave}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Profile picture */}
+            <View style={styles.editPhotoCard}>
+              <View style={styles.editPhotoFrame}>
+                {draft.photoUri ? (
+                  <Image source={{ uri: draft.photoUri }} style={styles.editPhotoImg} />
+                ) : (
+                  <View style={[styles.editPhotoImg, { alignItems: "center", justifyContent: "center", backgroundColor: "#F2F4F7" }]}>
+                    <Ionicons name="person" size={56} color="#A5ACBA" />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.editPhotoTitle}>Profile picture</Text>
+              <Text style={styles.editPhotoSub}>Tap below to upload a new photo</Text>
+              <TouchableOpacity
+                onPress={() => pickImage("photoUri", setPickingPhoto, [3, 4])}
+                disabled={pickingPhoto}
+                style={[styles.editPhotoBtn, pickingPhoto && { opacity: 0.85 }]}
+                testID="admin-pick-photo"
+                activeOpacity={0.85}
+              >
+                {pickingPhoto ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="camera" size={16} color="#fff" />
+                    <Text style={styles.editPhotoBtnText}>Change picture</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Banner logo */}
+            <View style={styles.editPhotoCard}>
+              <View style={[styles.editPhotoFrame, { backgroundColor: ORANGE, padding: 10 }]}>
+                {draft.bannerLogoUri ? (
+                  <Image source={{ uri: draft.bannerLogoUri }} style={styles.editLogoImg} resizeMode="contain" />
+                ) : (
+                  <View style={[styles.editLogoImg, { alignItems: "center", justifyContent: "center" }]}>
+                    <Ionicons name="image-outline" size={26} color="#ffffff99" />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.editPhotoTitle}>Banner logo</Text>
+              <Text style={styles.editPhotoSub}>Shown on the red banner. Tap to upload.</Text>
+              <TouchableOpacity
+                onPress={() => pickImage("bannerLogoUri", setPickingBannerLogo)}
+                disabled={pickingBannerLogo}
+                style={[styles.editPhotoBtn, pickingBannerLogo && { opacity: 0.85 }]}
+                testID="admin-pick-banner-logo"
+                activeOpacity={0.85}
+              >
+                {pickingBannerLogo ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="image" size={16} color="#fff" />
+                    <Text style={styles.editPhotoBtnText}>
+                      {draft.bannerLogoUri ? "Change logo" : "Upload logo"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              {draft.bannerLogoUri ? (
+                <TouchableOpacity
+                  onPress={() => setDraft({ ...draft, bannerLogoUri: "" })}
+                  style={styles.editLogoRemoveBtn}
+                  testID="admin-remove-banner-logo"
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editLogoRemoveText}>Remove logo</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Account & PINs */}
+            <Text style={styles.editSection}>Account & sign-in</Text>
+            <View style={styles.editGroup}>
+              <EditField label="Full name" value={name} onChange={setName} />
+              <View style={styles.editDivider} />
+              <EditField
+                label="6-digit code"
+                value={digits}
+                onChange={(v) => setDigits(v.replace(/\D/g, "").slice(0, 6))}
+              />
+              <View style={styles.editDivider} />
+              <EditField
+                label="3-letter code"
+                value={letters}
+                onChange={(v) => setLetters(v.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase())}
+              />
+            </View>
+
+            {/* Identity */}
+            <Text style={styles.editSection}>Identity</Text>
+            <View style={styles.editGroup}>
+              <DateField label="Date of birth" value={draft.dob} onPress={() => openDatePicker("dob")} />
+              <View style={styles.editDivider} />
+              <EditField
+                label="Signature name"
+                value={draft.signatureName}
+                onChange={(v) => setDraft({ ...draft, signatureName: v })}
+              />
+            </View>
+
+            {/* Address */}
+            <Text style={styles.editSection}>Address</Text>
+            <View style={styles.editGroup}>
+              <EditField
+                label="Address line 1"
+                value={draft.addressLine1}
+                onChange={(v) => setDraft({ ...draft, addressLine1: v.toUpperCase() })}
+              />
+              <View style={styles.editDivider} />
+              <EditField
+                label="Address line 2"
+                value={draft.addressLine2}
+                onChange={(v) => setDraft({ ...draft, addressLine2: v.toUpperCase() })}
+              />
+            </View>
+
+            {/* Licence */}
+            <Text style={styles.editSection}>Licence</Text>
+            <View style={styles.editGroup}>
+              <EditField
+                label="Licence type"
+                value={draft.licenceType}
+                onChange={(v) => setDraft({ ...draft, licenceType: v })}
+              />
+              <View style={styles.editDivider} />
+              <EditField
+                label="Permit status"
+                value={draft.permitStatus}
+                onChange={(v) => setDraft({ ...draft, permitStatus: v })}
+              />
+              <View style={styles.editDivider} />
+              <EditField
+                label="Proficiency"
+                value={draft.proficiency}
+                onChange={(v) => setDraft({ ...draft, proficiency: v })}
+              />
+              <View style={styles.editDivider} />
+              <DateField label="Issue date" value={draft.issueDate} onPress={() => openDatePicker("issueDate")} />
+              <View style={styles.editDivider} />
+              <DateField label="Expiry" value={draft.expiry} onPress={() => openDatePicker("expiry")} />
+            </View>
+
+            {/* System */}
+            <Text style={styles.editSection}>System</Text>
+            <View style={styles.editGroup}>
+              <EditField
+                label="Permit number"
+                value={draft.permitNumber}
+                onChange={(v) => setDraft({ ...draft, permitNumber: v })}
+              />
+              <View style={styles.editDivider} />
+              <EditField
+                label="Card number"
+                value={draft.cardNumber}
+                onChange={(v) => setDraft({ ...draft, cardNumber: v })}
+              />
+            </View>
+
+            {error ? (
+              <View style={[authStyles.errorBox, { marginTop: 14 }]}>
+                <Ionicons name="alert-circle" size={18} color="#B42318" />
+                <Text style={authStyles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
+      {/* Date picker overlay */}
+      <Modal
+        visible={!!datePickerField}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelDatePicker}
+      >
+        <View style={styles.dateBackdrop}>
+          <View style={styles.dateCard}>
+            <Text style={styles.dateTitle}>
+              {datePickerField === "dob"
+                ? "Date of birth"
+                : datePickerField === "expiry"
+                ? "Expiry"
+                : "Issue date"}
+            </Text>
+            {datePickerField && (
+              <WheelDatePicker
+                value={parseDate(draft[datePickerField])}
+                onChange={(d) => setDraft({ ...draft, [datePickerField]: formatDate(d) })}
+              />
+            )}
+            <View style={styles.dateBtnRow}>
+              <TouchableOpacity
+                style={styles.dateCancelBtn}
+                onPress={cancelDatePicker}
+                testID="admin-edit-date-cancel"
+              >
+                <Text style={styles.dateCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dateDoneBtn}
+                onPress={() => setDatePickerField(null)}
+                testID="admin-edit-date-done"
+              >
+                <Text style={styles.dateDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </Modal>
+  );
+}
+
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
